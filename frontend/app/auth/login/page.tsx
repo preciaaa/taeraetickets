@@ -85,7 +85,7 @@ export default function SignIn() {
       </form>
 
       <div className="mt-6 text-center">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <Button variant="link" onClick={redirectSignup}>
           Sign in
         </Button>
