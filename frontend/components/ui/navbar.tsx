@@ -23,8 +23,8 @@ export default function Navbar() {
         );
     } else {
         authbutton = (
-            <Link href="/login">
-                <Button>Sign In</Button>
+            <Link href="/auth/signup">
+                <Button>Sign Up</Button>
             </Link>
         );
     }
