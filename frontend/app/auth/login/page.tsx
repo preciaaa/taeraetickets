@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import ReCAPTCHA from "react-google-recaptcha"
 
 export default function SignIn() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true) // Initial check for session
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -38,6 +40,12 @@ export default function SignIn() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA.')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -77,6 +85,10 @@ export default function SignIn() {
           required
           onChange={(e) => setPassword(e.target.value)}
           className="mb-4"
+        />
+        <ReCAPTCHA
+          sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+          onChange={(token) => setRecaptchaToken(token)}
         />
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? 'Signing in...' : 'Sign In'}
