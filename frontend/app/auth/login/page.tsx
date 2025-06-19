@@ -23,7 +23,7 @@ export default function SignIn() {
       } = await supabase.auth.getSession()
 
       if (session) {
-        router.push('/home')
+        router.push('/events')
       } else {
         setLoading(false) // ✅ Set to false only if not logged in
       }
@@ -56,7 +56,7 @@ export default function SignIn() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/home')
+      router.push('/events')
     }
   }
 

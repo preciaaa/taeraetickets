@@ -20,7 +20,7 @@ export default function SignUpPage() {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        router.push('/home')
+        router.push('/events')
       } else {
         setLoading(false)
       }
@@ -49,7 +49,7 @@ export default function SignUpPage() {
     } else {
       setMessage('Check your email to confirm your account.')
       // ✅ Optional: do not redirect unless session exists
-      // router.push('/home')
+      // router.push('/events')
     }
 
     setLoading(false)

@@ -37,23 +37,11 @@ export default function Navbar() {
             <NavigationMenu>
                 <NavigationMenuList>
                     <NavigationMenuItem>
-                        <NavigationMenuTrigger>Tickets</NavigationMenuTrigger>
-                        <NavigationMenuContent>
-                            <NavigationMenuLink href="/tickets/buy">Buy Tickets</NavigationMenuLink>
-                            <NavigationMenuLink href="/tickets/sell">Sell Tickets</NavigationMenuLink>
-                        </NavigationMenuContent>
+                    <NavigationMenuLink href="/my-listings" className="rounded-full px-5">My Listings</NavigationMenuLink>
                     </NavigationMenuItem>
-
+                        <NavigationMenuLink href="/events" className="rounded-full px-5">Events</NavigationMenuLink>
                     <NavigationMenuItem>
-                        <NavigationMenuTrigger>Chats</NavigationMenuTrigger>
-                        <NavigationMenuContent>
-                            <NavigationMenuLink href="/chatsnotifications">Notifications</NavigationMenuLink>
-                            <NavigationMenuLink href="/chats">All Chats</NavigationMenuLink>
-                        </NavigationMenuContent>
-                    </NavigationMenuItem>
-
-                    <NavigationMenuItem>
-                            <NavigationMenuLink href="/cart" className="bg-black text-white rounded-full px-5">Cart</NavigationMenuLink>
+                            <NavigationMenuLink href="/cart" className="rounded-full px-5">Cart</NavigationMenuLink>
                     </NavigationMenuItem>
 
                     {/* Add more menu items here */}
