@@ -33,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import Link from "next/link";
 
 const mockEventData = [
   {
@@ -79,6 +80,8 @@ const mockTickets = [
 
 const categories = ['Cat1', 'Cat2', 'Cat3', 'Cat4']
 const quantity = [1, 2, 3, 4, 5, 6]
+
+const isUserVerified = false
 
 // Form schema
 const FormSchema = z.object({
@@ -278,7 +281,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
           </Form>
 
           {filteredTickets.length > 0 ? (
-            <div className="mt-8 space-y-4">
+            <div className="mt-2 space-y-4">
                 <h3 className="text-xl font-semibold">Available Tickets:</h3>
                 <ul className="space-y-2">
                     {filteredTickets.map((ticket, idx) => (
@@ -300,15 +303,21 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                         </li>
                     ))}
                 </ul>
-                <Button
+                <Link href="/profile/verification"><Button
                     disabled={!selectedTicket}
                     onClick={() => {
                         if (!selectedTicket) return
+                        if (!isUserVerified){
+                            toast.error("You need to verify your identity before purchasing tickets!", {
+                                description: "Go to profile settings to complete identity verfification"
+                            })
+                        }
                         setShowConfirm(true)
                     }}
                     >
                     Buy Now
                 </Button>
+                </Link>
             </div>
             ) : (
             <div className="mt-8 text-gray-500 italic">No tickets found for this filter.</div>

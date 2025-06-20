@@ -12,8 +12,7 @@ import Link from "next/link";
 
 
 export default function Navbar() {
-    //replace with real auth logic later
-    const isLoggedIn = false;
+    const isLoggedIn = true; // Mock
     let authbutton;
     if (isLoggedIn) {
         authbutton = (
