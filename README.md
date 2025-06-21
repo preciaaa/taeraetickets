@@ -35,3 +35,34 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# Taerae Tickets Backend
+
+## Overview
+This is the backend for the Taerae Tickets application. It connects to Supabase for database operations and uses Express.js for API routing.
+
+## Prerequisites
+- Node.js installed
+- Supabase credentials added to `.env`
+
+## Setup Instructions
+
+### Installation
+1. Navigate to the backend folder:
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Backend
+1. Start the server:
+   ```bash
+   node server.js
+   ```
+
+2. The backend will run at `http://localhost:3000`.
+
