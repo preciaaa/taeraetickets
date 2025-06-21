@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors'); // Import cors
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios'); // Import axios for HTTP requests
 require('dotenv').config({ path: './.env.local' }); // Updated path to .env
 
 // Debug log to verify environment variables
@@ -68,6 +69,52 @@ app.get('/auth-users/:id', async (req, res) => {
     }
 });
 
+// GET all users in authentication database
+app.get('/auth-users', async (req, res) => {
+    try {
+        const { data, error } = await supabase.auth.admin.listUsers(); // Supabase auth API to list users
+        if (error) throw error;
+        res.status(200).json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// CREATE a user in authentication database
+app.post('/auth-users', async (req, res) => {
+    try {
+        const { email, password } = req.body; // Expect email and password in the request body
+        const { data, error } = await supabase.auth.admin.createUser({ email, password }); // Supabase auth API to create user
+        if (error) throw error;
+        res.status(201).json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// UPDATE a user in authentication database
+app.put('/auth-users/:id', async (req, res) => {
+    try {
+        const { email, password } = req.body; // Expect email and/or password in the request body
+        const { data, error } = await supabase.auth.admin.updateUserById(req.params.id, { email, password }); // Supabase auth API to update user
+        if (error) throw error;
+        res.status(200).json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE a user in authentication database
+app.delete('/auth-users/:id', async (req, res) => {
+    try {
+        const { error } = await supabase.auth.admin.deleteUser(req.params.id); // Supabase auth API to delete user
+        if (error) throw error;
+        res.status(204).send();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // USER DB
 
 // Create a user with Supabase authentication
@@ -123,6 +170,39 @@ app.delete('/users/:id', async (req, res) => {
 		res.status(204).send();
 	} catch (err) {
 		res.status(500).json({ error: err.message });
+	}
+});
+
+// Verify reCAPTCHA token
+app.post('/verify-recaptcha', async (req, res) => {
+	try {
+		const { token } = req.body; // Expect the reCAPTCHA token in the request body
+		const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Your reCAPTCHA secret key from environment variables
+
+		// Send verification request to Google's reCAPTCHA API
+		const response = await axios.post(
+			`https://www.google.com/recaptcha/api/siteverify`,
+			null,
+			{
+				params: {
+					secret: secretKey,
+					response: token,
+				},
+			}
+		);
+
+		const { success, score } = response.data;
+
+		if (!success || score < 0.5) {
+			// If verification fails or score is too low
+			return res.status(400).json({ error: 'reCAPTCHA verification failed' });
+		}
+
+		// Verification successful
+		res.status(200).json({ message: 'reCAPTCHA verified successfully' });
+	} catch (err) {
+		console.error('Error verifying reCAPTCHA:', err.message);
+		res.status(500).json({ error: 'Internal server error' });
 	}
 });
 
