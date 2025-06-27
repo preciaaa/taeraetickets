@@ -56,7 +56,8 @@ export default function SignUpPage() {
   }
 
   const redirectLogin = () => {
-    router.push('/auth/login')
+    // router.push('/auth/login')
+    window.location.href = '/auth/login'
   }
 
   if (loading) return <div>Loading...</div>

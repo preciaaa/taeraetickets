@@ -61,7 +61,8 @@ export default function SignIn() {
   }
 
   const redirectSignup = async () => {
-    router.push('/auth/signup')
+    // router.push('/auth/signup')
+    window.location.href = '/auth/signup'
   }
 
   if (loading) return <div>Loading...</div>
