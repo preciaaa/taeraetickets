@@ -69,8 +69,8 @@ export default function SignIn() {
 
   return (
     <div className="min-h-[calc(100vh-69px)] flex items-center justify-center bg-gradient-to-b from-yellow-50 to-white">
-      <div className="w-full max-w-xl bg-white/90 rounded-3xl shadow-2xl p-12 border-2 border-gray-200">
-        <h1 className="text-4xl font-bold mb-8 text-center">Sign In</h1>
+      <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-xl p-8 border border-gray-200">
+        <h1 className="text-3xl font-bold mb-6 text-center">Sign In</h1>
         <form onSubmit={handleSignIn}>
           <Input
             type="email"
@@ -78,7 +78,7 @@ export default function SignIn() {
             value={email}
             required
             onChange={(e) => setEmail(e.target.value)}
-            className="mb-6 text-lg h-14 px-5"
+            className="mb-4 text-base h-12 px-4"
           />
           <Input
             type="password"
@@ -86,22 +86,22 @@ export default function SignIn() {
             value={password}
             required
             onChange={(e) => setPassword(e.target.value)}
-            className="mb-6 text-lg h-14 px-5"
+            className="mb-4 text-base h-12 px-4"
           />
-          <div className="mb-6 flex justify-left">
+          <div className="mb-4 flex justify-left">
             <ReCAPTCHA
               sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
               onChange={(token) => setRecaptchaToken(token)}
             />
           </div>
-          <Button type="submit" disabled={loading} className="w-full h-14 text-lg font-semibold">
+          <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold">
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
-          {error && <p className="mt-6 text-base text-center">{error}</p>}
+          {error && <p className="mt-4 text-sm text-center">{error}</p>}
         </form>
-        <div className="mt-8 text-center text-lg">
+        <div className="mt-6 text-center text-base">
           Don&apos;t have an account?{' '}
-          <Button variant="link" onClick={redirectSignup} className="text-blue-500 underline inline-flex p-0 align-baseline text-lg">
+          <Button variant="link" onClick={redirectSignup} className="text-blue-500 underline inline-flex p-0 align-baseline text-base">
             Sign up
           </Button>
         </div>
