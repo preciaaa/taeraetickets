@@ -100,7 +100,7 @@ export default function SignIn() {
       <div className="mt-6 text-center">
         Don&apos;t have an account?{" "}
         <Button variant="link" onClick={redirectSignup}>
-          Sign in
+          Sign up
         </Button>
       </div>
     </div>
