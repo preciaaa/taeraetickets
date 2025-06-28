@@ -61,7 +61,8 @@ export default function SignIn() {
   }
 
   const redirectSignup = async () => {
-    router.push('/auth/signup')
+    // router.push('/auth/signup')
+    window.location.href = '/auth/signup'
   }
 
   if (loading) return <div>Loading...</div>
@@ -99,7 +100,7 @@ export default function SignIn() {
       <div className="mt-6 text-center">
         Don&apos;t have an account?{" "}
         <Button variant="link" onClick={redirectSignup}>
-          Sign in
+          Sign up
         </Button>
       </div>
     </div>
