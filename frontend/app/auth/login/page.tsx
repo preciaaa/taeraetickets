@@ -68,40 +68,43 @@ export default function SignIn() {
   if (loading) return <div>Loading...</div>
 
   return (
-    <div className="max-w-md mx-auto py-10 px-4">
-      <h1 className="text-2xl font-bold mb-4">Sign In</h1>
-      <form onSubmit={handleSignIn}>
-        <Input
-          type="email"
-          placeholder="Email"
-          value={email}
-          required
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4"
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          required
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-4"
-        />
-        <ReCAPTCHA
-          sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-          onChange={(token) => setRecaptchaToken(token)}
-        />
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Signing in...' : 'Sign In'}
-        </Button>
-        {error && <p className="text-red-500 mt-4">{error}</p>}
-      </form>
-
-      <div className="mt-6 text-center">
-        Don&apos;t have an account?{" "}
-        <Button variant="link" onClick={redirectSignup}>
-          Sign up
-        </Button>
+    <div className="min-h-[calc(100vh-69px)] flex items-center justify-center bg-gradient-to-b from-yellow-50 to-white">
+      <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-xl p-8 border border-gray-200">
+        <h1 className="text-3xl font-bold mb-6 text-center">Sign In</h1>
+        <form onSubmit={handleSignIn}>
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            required
+            onChange={(e) => setEmail(e.target.value)}
+            className="mb-4 text-base h-12 px-4"
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            required
+            onChange={(e) => setPassword(e.target.value)}
+            className="mb-4 text-base h-12 px-4"
+          />
+          <div className="mb-4 flex justify-left">
+            <ReCAPTCHA
+              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+              onChange={(token) => setRecaptchaToken(token)}
+            />
+          </div>
+          <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold">
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+          {error && <p className="mt-4 text-sm text-center">{error}</p>}
+        </form>
+        <div className="mt-6 text-center text-base">
+          Don&apos;t have an account?{' '}
+          <Button variant="link" onClick={redirectSignup} className="text-blue-500 underline inline-flex p-0 align-baseline text-base">
+            Sign up
+          </Button>
+        </div>
       </div>
     </div>
   )
