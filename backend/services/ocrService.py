@@ -15,3 +15,4 @@ async def extract_text(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail='Invalid image upload')
     except TesseractError:
         raise HTTPException(status_code=401, detail='OCR processing failed')
+    
