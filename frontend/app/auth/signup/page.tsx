@@ -11,9 +11,12 @@ export default function SignUpPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -32,6 +35,12 @@ export default function SignUpPage() {
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
+
+    if (showPassword && password !== confirmPassword) {
+      setMessage('Passwords do not match.')
+      setLoading(false)
+      return
+    }
 
     if (!recaptchaToken) {
       setMessage('Please complete the reCAPTCHA.')
@@ -60,43 +69,95 @@ export default function SignUpPage() {
     window.location.href = '/auth/login'
   }
 
+  function validateEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
   if (loading) return <div>Loading...</div>
 
   return (
-    <div className="max-w-md mx-auto py-10 px-4">
-      <h1 className="text-2xl font-bold mb-4">Sign Up</h1>
-      <form onSubmit={handleSignup}>
-        <Input
-          type="email"
-          placeholder="Email"
-          value={email}
-          required
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4"
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          required
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-4"
-        />
-        <ReCAPTCHA
-          sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-          onChange={(token) => setRecaptchaToken(token)}
-        />
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Signing up...' : 'Sign Up'}
-        </Button>
-        {message && <p className="mt-4 text-sm text-center">{message}</p>}
-      </form>
-
-      <div className="mt-6 text-center">
-        Already have an account?{" "}
-        <Button variant="link" onClick={redirectLogin}>
-          Sign in
-        </Button>
+    <div className="min-h-[calc(100vh-69px)] flex items-center justify-center bg-gradient-to-b from-yellow-50 to-white">
+      <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-xl p-8 border border-gray-200">
+        <h1 className="text-3xl font-bold mb-6 text-center">Sign Up</h1>
+        <form onSubmit={handleSignup}>
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            required
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setEmailError('')
+            }}
+            className="mb-4 text-base h-12 px-4"
+            disabled={showPassword}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (!validateEmail(email)) {
+                  setEmailError('Please enter a valid email address.')
+                } else {
+                  setShowPassword(true)
+                }
+              }
+            }}
+          />
+          {!showPassword ? (
+            <>
+              {emailError && <p className="text-red-500 mb-2 text-center">{emailError}</p>}
+              <Button
+                type="button"
+                className="w-full h-12 text-base font-semibold mb-4"
+                disabled={!email}
+                onClick={() => {
+                  if (!validateEmail(email)) {
+                    setEmailError('Please enter a valid email address.')
+                  } else {
+                    setShowPassword(true)
+                  }
+                }}
+              >
+                Continue with Email
+              </Button>
+            </>
+          ) : (
+            <>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                required
+                onChange={(e) => setPassword(e.target.value)}
+                className="mb-3 text-base h-12 px-4"
+              />
+              <Input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                required
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mb-4 text-base h-12 px-4"
+              />
+              <div className="mb-4 flex justify-left">
+                <ReCAPTCHA
+                  sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+                  onChange={(token) => setRecaptchaToken(token)}
+                  className="w-full"
+                />
+              </div>
+              <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold">
+                {loading ? 'Signing up...' : 'Sign Up'}
+              </Button>
+            </>
+          )}
+          {message && <p className="mt-4 text-sm text-center">{message}</p>}
+        </form>
+        <div className="mt-6 text-center text-base">
+          Already have an account?{' '}
+          <Button variant="link" onClick={redirectLogin} className="text-blue-500 underline inline-flex p-0 align-baseline text-base">
+            Sign in
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -6,7 +6,7 @@
 export default function HomePage() {
   return (
     <>
-      <div className="min-h-screen bg-taeraeyellow overflow-hidden flex flex-col justify-center items-center">
+      <div className="min-h-screen overflow-hidden flex flex-col justify-center items-center">
         <main className="p-6 space-y-6">
           <p className="text-center text-gray-600">Buy and resell tickets securely.</p>
           <div className="flex items-center justify-center">
