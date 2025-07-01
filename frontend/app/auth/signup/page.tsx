@@ -23,7 +23,8 @@ export default function SignUpPage() {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        router.push('/events')
+        localStorage.setItem('customSessionStart', Date.now().toString())
+        window.location.href = '/events'
       } else {
         setLoading(false)
       }
