@@ -9,7 +9,7 @@ export default function profilePage() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push("/auth/login");
+        window.location.href = "/auth/login";
     };
 
     return (

@@ -91,6 +91,16 @@ export default function SignUpPage() {
             }}
             className="mb-4 text-base h-12 px-4"
             disabled={showPassword}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (!validateEmail(email)) {
+                  setEmailError('Please enter a valid email address.')
+                } else {
+                  setShowPassword(true)
+                }
+              }
+            }}
           />
           {!showPassword ? (
             <>
