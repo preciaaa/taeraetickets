@@ -23,7 +23,8 @@ export default function SignIn() {
       } = await supabase.auth.getSession()
 
       if (session) {
-        router.push('/events')
+        localStorage.setItem('customSessionStart', Date.now().toString())
+        window.location.href = '/events' 
       } else {
         setLoading(false) // ✅ Set to false only if not logged in
       }
@@ -56,7 +57,8 @@ export default function SignIn() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/events')
+      localStorage.setItem('customSessionStart', Date.now().toString())
+      window.location.href = '/events'
     }
   }
 
