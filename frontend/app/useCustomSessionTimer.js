@@ -14,6 +14,7 @@ const WARNING_THRESHOLD = 5 * 60 * 1000 // 5 mins
 
 export const useCustomSessionTimer = () => {
     const router = useRouter()
+    console.log('⏳ Timer hook mounted')
 
     useEffect(() => {
         const startStr = localStorage.getItem('customSessionStart')
