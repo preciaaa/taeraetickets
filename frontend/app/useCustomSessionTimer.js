@@ -14,7 +14,6 @@ const WARNING_THRESHOLD = 5 * 60 * 1000 // 5 mins
 
 export const useCustomSessionTimer = () => {
     const router = useRouter()
-    console.log('⏳ Timer hook mounted')
 
     useEffect(() => {
         const startStr = localStorage.getItem('customSessionStart')
@@ -35,7 +34,7 @@ export const useCustomSessionTimer = () => {
             const elapsed = now - start
             const remaining = SESSION_DURATION - elapsed
 
-            console.log('Time remaining (ms):', remaining)
+            // console.log('Time remaining (ms):', remaining)
 
             if (remaining <= WARNING_THRESHOLD && remaining > 0 && !warned) {
                 toast.warning('Your session will expire in 5 minutes!')

@@ -72,7 +72,6 @@ export default function EventsPage() {
   
       if (session) {
         localStorage.setItem('customSessionStart', Date.now().toString())
-        console.log('✅ customSessionStart set!')
       }
     })
   }, [])
