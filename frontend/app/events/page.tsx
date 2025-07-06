@@ -66,6 +66,17 @@ export default function EventsPage() {
     checkAuthAndFetchEvents()
   }, [router])
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('🔍 session on /events:', session)
+  
+      if (session) {
+        localStorage.setItem('customSessionStart', Date.now().toString())
+      }
+    })
+  }, [])
+  
+
   if (loading) return <div>Loading...</div>
 
   // Filtered suggestions for autocomplete

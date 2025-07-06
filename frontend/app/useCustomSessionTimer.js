@@ -34,7 +34,7 @@ export const useCustomSessionTimer = () => {
             const elapsed = now - start
             const remaining = SESSION_DURATION - elapsed
 
-            console.log('Time remaining (ms):', remaining)
+            // console.log('Time remaining (ms):', remaining)
 
             if (remaining <= WARNING_THRESHOLD && remaining > 0 && !warned) {
                 toast.warning('Your session will expire in 5 minutes!')
