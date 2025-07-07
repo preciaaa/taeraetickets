@@ -3,11 +3,11 @@ kafka-python==2.0.2
 
 # OCR dependencies
 pytesseract==0.3.10
-Pillow==10.0.1
+Pillow==10.1.0
 
 # Image processing and ML
-torch==2.0.1
-torchvision==0.15.2
+torch==2.1.0
+torchvision==0.16.0
 numpy==1.24.3
 
 # FAISS for similarity search
@@ -18,15 +18,21 @@ fastapi==0.104.1
 uvicorn==0.24.0
 
 # Flink dependencies
-apache-flink==1.17.1
 pyflink==1.17.1
 
 # Utilities
 python-multipart==0.0.6
-aiofiles==23.2.1
 
 # Logging and monitoring
 structlog==23.2.0
 
 # Optional: For production deployment
-gunicorn==21.2.0 
+gunicorn==21.2.0
+
+# Additional dependencies
+opencv-python==4.8.1.78
+scikit-image==0.21.0
+transformers==4.35.0
+requests==2.31.0
+python-dotenv==1.0.0
+pydantic==2.5.0 

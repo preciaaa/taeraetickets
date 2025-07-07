@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
 from pytesseract import image_to_string
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 import io
 
 app = FastAPI()

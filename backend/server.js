@@ -10,6 +10,7 @@ const authService = require('./services/authService');
 const userService = require('./services/userService');
 const recaptchaService = require('./services/recaptchaService');
 const facialRecognition = require('./services/facialRecognition');
+const listingService = require('./services/listingService');
 const parseTicketText = require('./utils/parser');
 const generateFingerprint = require('./utils/fingerprint');
 
@@ -19,41 +20,40 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Health check endpoint (must be before other routes)
+app.get('/health', (req, res) => {
+  console.log('Health check requested');
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Route Registration
 app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
 app.use('/', facialRecognition);
+app.use('/', listingService);
 
-// ticket upload
-app.post('/upload', upload.single('ticket'), async (req, res) => {
-    try {
-        const { path } = req.file;
-
-        const formData = new FormData();
-        formData.append('image', fs.createReadStream(path));
-
-        const ocrResponse = await axios.post('http://localhost:5001/ocr', formData, {
-            headers: formData.getHeaders(),
-        });
-
-        const text = ocrResponse.data.text;
-        console.log('OCR Result:', text);
-
-        // add fraud detection logic later 
-        res.status(200).json({ status: 'OK', parsedText: text });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Error processing ticket' });
-    }
+// 404 handler
+app.use('*', (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: 'Route not found', path: req.originalUrl });
 });
 
-const ticketInfo = parseTicketText(ocrText);
-const fingerprint = generateFingerprint(ticketInfo); 
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 // Start the server
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    console.log(`Health check available at http://localhost:${port}/health`);
 });
