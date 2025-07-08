@@ -68,7 +68,7 @@ export default function EventsPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🔍 session on /events:', session)
+      // console.log('🔍 session on /events:', session)
   
       if (session) {
         localStorage.setItem('customSessionStart', Date.now().toString())
