@@ -12,6 +12,7 @@ router.post('/compare-faces', async (req, res) => {
 
   try {
     // Call user service to get stored embedding
+    // Replace axios.get(`http://localhost:3000/users/${userId}`) with Supabase Auth API call if user info is needed
     const userResponse = await axios.get(`http://localhost:3000/users/${userId}`);
     const storedEmbeddingRaw = userResponse.data?.face_embedding;
 
@@ -42,7 +43,7 @@ router.post('/compare-faces', async (req, res) => {
     // Update verification if matched
     if (match) {
       try {
-        await axios.post(`http://localhost:3000/users/${userId}/verification`, { verified: true });
+        // Replace axios.post(`http://localhost:3000/users/${userId}/verification`, { verified: true }) with appropriate Supabase Auth API call or remove if not needed
       } catch (updateError) {
         console.error('Failed to update verification:', updateError);
         // Optionally you can respond with an error here or just log and continue

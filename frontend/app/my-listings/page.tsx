@@ -74,7 +74,7 @@ export default function MyListings() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
-        fetchListings(session.user.id);
+        fetchListings2(session.user.id);
       } else {
         router.push('/auth/login');
       }
@@ -84,7 +84,7 @@ export default function MyListings() {
     }
   };
 
-    const fetchListings = async (userId: string) => {
+    const fetchListings2 = async (userId: string) => {
     try {
       setLoading(true);
       
@@ -134,7 +134,7 @@ export default function MyListings() {
       }
 
       toast.success('Listing deleted successfully');
-      fetchListings(user.id);
+      fetchListings2(user.id);
     } catch (error) {
       console.error('Error deleting listing:', error);
       toast.error('Failed to delete listing');
@@ -156,7 +156,7 @@ export default function MyListings() {
       }
 
       toast.success('Listing confirmed and published!');
-      fetchListings(user.id);
+      fetchListings2(user.id);
     } catch (error) {
       console.error('Error confirming listing:', error);
       toast.error('Failed to confirm listing');
@@ -201,7 +201,16 @@ export default function MyListings() {
             {error && <div className="text-red-500">{error}</div>}
             {!loading && !error && (
                 listings.length === 0 ? (
-                    <div>No tickets listed for resale.</div>
+                    <>
+                      <div>No tickets listed for resale.</div>
+                      <Button 
+                        onClick={() => router.push('/my-listings/new')}
+                        className="bg-blue-600 hover:bg-blue-700 mt-4"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Your First Listing
+                      </Button>
+                    </>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-4">
                         {listings.map((listing) => (

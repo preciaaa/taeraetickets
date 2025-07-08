@@ -1,3 +1,6 @@
+// This file is deprecated. Use Supabase Auth (auth.users) for all user management.
+// All endpoints below are deprecated and should not be used.
+
 // USER DB
 const express = require('express');
 const connectToSupabase = require('../db/supabase');
@@ -32,6 +35,16 @@ router.post('/users', async (req, res) => {
 		const { email, password } = req.body; // Expect email and password in the request body
 		const { data, error } = await supabase.auth.signUp({ email, password });
 		if (error) throw error;
+
+        // Insert into users table if not already present
+        const userId = data.user?.id;
+        if (userId) {
+            const { count } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('id', userId);
+            if (!count) {
+                await supabase.from('users').insert({ id: userId, username: email });
+            }
+        }
+
 		res.status(201).json(data); // Return the authentication data
 	} catch (err) {
 		res.status(500).json({ error: err.message });

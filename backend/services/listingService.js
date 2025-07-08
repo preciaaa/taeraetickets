@@ -44,12 +44,15 @@ const upload = multer({
 
 router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
   try {
+    // original_owner_id should be the Supabase Auth user.id (UUID)
+    // No need to check custom users table
     const { userId } = req.body;
-    const filePath = req.file.path;
-
     if (!userId) {
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: 'User ID is required' });
     }
+
+    const filePath = req.file.path;
 
     // Check for duplicate image using deduplication service
     const dedupFormData = new FormData();
@@ -123,7 +126,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         section: parsedFields.section || '',
         row: parsedFields.row || '',
         seat_number: parsedFields.seat ? parseInt(parsedFields.seat) : null,
-        status: 'pending_verification',
+        status: 'active',
         date: parsedFields.event_date ? new Date(parsedFields.event_date) : null,
         price: parsedFields.price ? parseFloat(parsedFields.price.replace(/[^0-9.]/g, '')) : null,
         fixed_seating: true,
