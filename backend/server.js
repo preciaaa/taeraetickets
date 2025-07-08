@@ -13,6 +13,7 @@ const facialRecognition = require('./services/facialRecognition');
 const listingService = require('./services/listingService');
 const parseTicketText = require('./utils/parser');
 const generateFingerprint = require('./utils/fingerprint');
+const cartService = require('./services/cartService');  
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
 app.use('/', facialRecognition);
+app.use('/', cartService);
 app.use('/', listingService);
 
 // 404 handler

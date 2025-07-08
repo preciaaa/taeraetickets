@@ -52,6 +52,9 @@ export default function SignUpPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: 'http://localhost:3000/events', // change to your actual redirect URL
+      }
     })
 
     if (error) {
