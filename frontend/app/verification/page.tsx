@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import  FaceVerification from '@/components/ui/face-verification'
 import Webcam from 'react-webcam'
 import { cn } from '@/lib/utils'
 import { createClient } from '@supabase/supabase-js'
@@ -20,6 +21,15 @@ export default function VerificationPage() {
   const [startVerification, setStartVerification] = useState(false)
   const [timer, setTimer] = useState(0)
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      if (data?.user) setUserId(data.user.id)
+    }
+    fetchUser()
+  }, [])
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -143,42 +153,17 @@ export default function VerificationPage() {
       <h1 className="text-4xl font-bold mb-4">Verification</h1>
       {next ? (
         <div className="space-y-4">
-          <div className="relative w-full max-w-md aspect-video rounded-md overflow-hidden">
-            <Webcam
-              ref={webcamRef}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              className="w-full h-full object-cover"
-            />
-            {match && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="bg-background/80 backdrop-blur-sm border border-green-500 rounded-xl p-8 flex flex-col items-center">
-                  <span className="text-green-600 text-5xl">✅ Verified</span>
-                </div>
-              </div>
-            )}
-          </div>
-          {!match && showTimeoutWarning && (
-            <div className="text-red-600 text-center">
-              ❌ Could not verify in time. Please try again.
-              <Button
-                onClick={() => {
-                  setStartVerification(false)
-                  setShowTimeoutWarning(false)
-                  setTimer(0)
-                  setNext(false)
-                  setMatch(null)
-                }}
-                className="mt-2"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-          <Button className="w-full" disabled={!match} onClick={() => router.push(`/profile`)}>
-            Finish
-          </Button>
-        </div>
+        <FaceVerification
+          userId={userId ?? undefined} 
+          onSuccess={() => router.push('/profile')}
+          onFailure={() => {
+            setStartVerification(false)
+            setNext(false)
+            setMatch(null)
+            setShowTimeoutWarning(true)
+          }}
+        />
+      </div>
       ) : (
         <div>
           <h2 className="text-3xl font-semibold mb-4">Upload an identification picture</h2>
