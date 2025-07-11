@@ -16,93 +16,102 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (
+      file.mimetype.startsWith('image/') ||
+      file.mimetype === 'application/pdf' ||
+      file.mimetype === 'application/octet-stream'
+    ) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error('Only image files or PDFs are allowed'), false);
     }
   }
 });
 
 router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
   try {
-    // original_owner_id should be the Supabase Auth user.id (UUID)
-    // No need to check custom users table
     const { userId } = req.body;
     if (!userId) {
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    const filePath = req.file.path;
+    const isPdf = req.file.mimetype === 'application/pdf';
+    let embedding = null;
+    let publicUrl = null;
+    let uploadBuffer = req.file.buffer;
+    let fileName;
 
-    // Check for duplicate image using deduplication service
-    const dedupFormData = new FormData();
-    dedupFormData.append('image', fs.createReadStream(filePath));
-    const dedupResponse = await axios.post('http://localhost:5002/check-duplicate', dedupFormData, {
-      headers: dedupFormData.getHeaders(),
-    });
-    const embedding = dedupResponse.data.embedding; // array of 2048 floats
-
-    // Query Supabase for similar embeddings (vector search)
-    // Requires pgvector extension and match_embedding function
-    const { data: similarListings, error: matchError } = await supabase.rpc('match_embedding', {
-      query_embedding: embedding,
-      match_threshold: 0.5, // Tune this threshold as needed
-      match_count: 1
-    });
-    if (matchError) {
-      console.error('Error querying for similar embeddings:', matchError);
-    }
-    if (similarListings && similarListings.length > 0) {
-      fs.unlinkSync(filePath); // Clean up temp file
-      return res.status(409).json({ error: 'Duplicate ticket image detected (DB check). Listing not created.' });
-    }
-
-    const optimizedBuffer = await sharp(filePath)
-      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toBuffer();
-
-    const fileName = `${uuidv4()}.jpg`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('tickets')
-      .upload(fileName, optimizedBuffer, {
-        contentType: 'image/jpeg',
-        cacheControl: '3600'
+    if (!isPdf) {
+      // Check for duplicate image using deduplication service
+      const dedupFormData = new FormData();
+      dedupFormData.append('image', Buffer.from(uploadBuffer), {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype
       });
+      const dedupResponse = await axios.post('http://localhost:5002/check-duplicate', dedupFormData, {
+        headers: dedupFormData.getHeaders(),
+      });
+      embedding = dedupResponse.data.embedding;
 
-    if (uploadError) {
-      throw new Error(`Storage upload failed: ${uploadError.message}`);
+      // Query Supabase for similar embeddings (vector search)
+      const { data: similarListings, error: matchError } = await supabase.rpc('match_embedding', {
+        query_embedding: embedding,
+        match_threshold: 0.5,
+        match_count: 1
+      });
+      if (matchError) {
+        console.error('Error querying for similar embeddings:', matchError);
+      }
+      if (similarListings && similarListings.length > 0) {
+        return res.status(409).json({ error: 'Duplicate ticket image detected (DB check). Listing not created.' });
+      }
+
+
+      const optimizedBuffer = await sharp(uploadBuffer)
+        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+      fileName = `${uuidv4()}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('tickets')
+        .upload(fileName, optimizedBuffer, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600'
+        });
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+      publicUrl = supabase.storage
+        .from('tickets')
+        .getPublicUrl(fileName).data.publicUrl;
+    } else {
+
+      fileName = `${uuidv4()}.pdf`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('tickets')
+        .upload(fileName, uploadBuffer, {
+          contentType: 'application/pdf',
+          cacheControl: '3600'
+        });
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+      publicUrl = supabase.storage
+        .from('tickets')
+        .getPublicUrl(fileName).data.publicUrl;
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('tickets')
-      .getPublicUrl(fileName);
 
-    // Call OCR service
     const formData = new FormData();
-    formData.append('file', fs.createReadStream(filePath));
-
+    formData.append('file', Buffer.from(uploadBuffer), {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
+    });
     const ocrResponse = await axios.post('http://localhost:5001/extract-text/', formData, {
       headers: {
         ...formData.getHeaders(),
@@ -110,10 +119,27 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     });
 
     const extractedText = ocrResponse.data.text;
+    const isScanned = ocrResponse.data.is_scanned || false;
     console.log('OCR Result:', extractedText);
+    console.log('Is Scanned:', isScanned);
 
     // Parse ticket text
-    const parsedFields = parseTicketText(extractedText);
+    let parsedFields = {};
+    if (isScanned) {
+        // For scanned PDFs, use default values and let user fill in manually
+        parsedFields = {
+            event_name: 'Scanned Ticket - Manual Entry Required',
+            section: '',
+            row: '',
+            seat: '',
+            event_date: '',
+            price: '',
+            venue: ''
+        };
+    } else {
+        parsedFields = parseTicketText(extractedText);
+    }
+    
     const fingerprint = generateFingerprint(parsedFields);
 
     // Create listing record in database
@@ -147,15 +173,14 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    // Clean up temporary file
-    fs.unlinkSync(filePath);
-
     res.json({
       success: true,
       listingId: listing.ticket_id,
       parsed: parsedFields,
       fingerprint,
-      imageUrl: publicUrl
+      imageUrl: publicUrl,
+      isScanned: isScanned,
+      extractedText: extractedText
     });
 
   } catch (error) {
@@ -289,13 +314,11 @@ router.delete('/listings/:listingId', async (req, res) => {
   }
 });
 
-// Resell ticket (transfer ownership)
 router.post('/resell-ticket/:ticketId', async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { newOwnerId } = req.body;
 
-    // Fetch the listing
     const { data: listing, error: fetchError } = await supabase
       .from('listings')
       .select('*')
@@ -306,12 +329,11 @@ router.post('/resell-ticket/:ticketId', async (req, res) => {
       return res.status(404).json({ error: 'Listing not found' });
     }
 
-    // Update ownership
     const { data: updatedListing, error: updateError } = await supabase
       .from('listings')
       .update({
         original_owner_id: newOwnerId,
-        new_owner_id: null, // Optionally clear new_owner_id after transfer
+        new_owner_id: null, 
         updated_at: new Date().toISOString()
       })
       .eq('ticket_id', ticketId)

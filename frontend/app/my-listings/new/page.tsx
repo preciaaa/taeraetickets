@@ -58,25 +58,23 @@ export default function NewListing() {
   };
 
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setUploadedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      setParsedData({});
-      setEditableData({});
-      setListingId('');
-    }
-  }, []);
+const onDrop = useCallback((acceptedFiles: File[]) => {
+  console.log("onDrop triggered:", acceptedFiles);
+  const file = acceptedFiles[0];
+  if (file) {
+    setUploadedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setParsedData({});
+    setEditableData({});
+    setListingId('');
+    console.log('File selected:', file, 'Preview URL:', URL.createObjectURL(file));
+  }
+}, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.bmp']
-    },
     multiple: false,
-    maxSize: 10 * 1024 * 1024 
+    maxSize: 50 * 1024 * 1024 
   });
 
   const uploadTicket = async () => {
@@ -250,17 +248,32 @@ export default function NewListing() {
               }`}
             >
               <input {...getInputProps()} />
-              {previewUrl ? (
-                <div className="space-y-4">
-                  <img
-                    src={previewUrl}
-                    alt="Ticket preview"
-                    className="mx-auto max-h-64 object-contain rounded"
-                  />
-                  <p className="text-sm text-gray-600">
-                    Click to change image or drag and drop a new one
-                  </p>
-                </div>
+              {uploadedFile && previewUrl ? (
+                uploadedFile.type.startsWith('image/') ? (
+                  <div className="space-y-4">
+                    <img
+                      src={previewUrl}
+                      alt="Ticket preview"
+                      className="mx-auto max-h-64 object-contain rounded"
+                    />
+                    <p className="text-sm text-gray-600">
+                      Click to change image or drag and drop a new one
+                    </p>
+                  </div>
+                ) : uploadedFile.type === 'application/pdf' ? (
+                  <div className="space-y-4 flex flex-col items-center">
+                    <object
+                      data={previewUrl}
+                      type="application/pdf"
+                      width="100%"
+                      height="256px"
+                      className="rounded"
+                    />
+                    <p className="text-sm text-gray-600">
+                      PDF selected. Click to change or drag and drop a new file.
+                    </p>
+                  </div>
+                ) : null
               ) : (
                 <div className="space-y-4">
                   <Upload className="mx-auto h-12 w-12 text-gray-400" />
@@ -269,7 +282,7 @@ export default function NewListing() {
                       {isDragActive ? 'Drop the file here' : 'Upload your ticket'}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Drag and drop an image, or click to select
+                      Drag and drop an image or PDF, or click to select
                     </p>
                   </div>
                 </div>
