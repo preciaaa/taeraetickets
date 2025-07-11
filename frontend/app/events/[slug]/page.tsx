@@ -112,13 +112,9 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
       
         setFilteredTickets(filtered)
       
-        toast('Filtered tickets:', {
-          description: (
-            <pre className="mt-2 w-[320px] rounded-md bg-neutral-950 p-4">
-              <code className="text-white">{JSON.stringify(filtered, null, 2)}</code>
-            </pre>
-          ),
-        })      
+        toast.success("Tickets filtered", {
+            description: filtered.map(t => `${t.category} - Qty: ${t.quantity}, $${t.price}`).join('\n'),
+        });               
     }
 
   return (
