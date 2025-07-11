@@ -1,12 +1,8 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pytesseract import image_to_string
-from PIL import Image, UnidentifiedImageError
-import PyPDF2
-import io
 import requests
-import base64
 import os
+import io
 
 app = FastAPI()
 
@@ -19,51 +15,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def extract_text_with_aws_textract(image_bytes):
-    """
-    Use AWS Textract for OCR
-    This is excellent for document processing and ticket extraction
-    """
-    try:
-        # You would need to set up AWS Textract
-        # 1. Create AWS account
-        # 2. Install boto3: pip install boto3
-        # 3. Configure AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-        # 4. Set AWS region (AWS_DEFAULT_REGION)
-        
-        # Example implementation:
-        import boto3
-        textract = boto3.client('textract', region_name='us-east-1')
-        response = textract.detect_document_text(
-            Document={'Bytes': image_bytes}
-        )
-        text = ''
-        for item in response['Blocks']:
-            if item['BlockType'] == 'LINE':
-                text += item['Text'] + '\n'
-        return text
-        
-    except Exception as e:
-        print(f"AWS Textract error: {e}")
-        return ""
-
-def convert_pdf_to_images_aws(pdf_bytes):
-    """
-    Convert PDF to images using AWS services
-    """
-    try:
-        # You can use AWS services to convert PDF to images
-        # 1. AWS Lambda with pdf2image
-        # 2. AWS Step Functions for workflow
-        # 3. Or use a third-party service that works with AWS
-        
-        # For now, return None to show the structure
-        print("AWS PDF to image conversion would happen here")
-        return None
-        
-    except Exception as e:
-        print(f"AWS PDF to image conversion error: {e}")
-        return None
+# Get Mistral API key from environment variable
+MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
+if not MISTRAL_API_KEY:
+    print("Warning: MISTRAL_API_KEY not found in environment variables")
 
 @app.post('/extract-text/')
 async def extract_text(file: UploadFile = File(...)):
@@ -71,58 +26,66 @@ async def extract_text(file: UploadFile = File(...)):
     if file.size and file.size > 100 * 1024 * 1024:
         raise HTTPException(status_code=413, detail='File too large. Maximum size is 100MB.')
     
+    if not MISTRAL_API_KEY:
+        raise HTTPException(status_code=500, detail='Mistral API key not configured')
+    
     file_bytes = await file.read()
     try:
-        if file.filename and (file.filename.lower().endswith('.pdf') or file.content_type == 'application/pdf'):
-            # First, try to extract text directly from PDF using PyPDF2
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-            text = ''
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                text += page_text + '\n'
-                print(f"Page text length: {len(page_text)}")
-                print(f"Page text preview: {page_text[:200]}...")
-            
-            print(f"Total extracted text length: {len(text)}")
-            print(f"Total text preview: {text[:500]}...")
-            
-            # If no text was extracted, try AWS conversion
-            if not text.strip():
-                print("No text found with PyPDF2, trying AWS conversion...")
-                images = convert_pdf_to_images_aws(file_bytes)
-                
-                if images:
-                    # Convert images to text using AWS Textract
-                    text = ''
-                    for i, image in enumerate(images):
-                        page_text = extract_text_with_aws_textract(image)
-                        text += f"Page {i+1}:\n{page_text}\n"
-                        print(f"AWS Textract Page {i+1} text length: {len(page_text)}")
-                    
-                    if not text.strip():
-                        return {
-                            'text': 'No text could be extracted from this PDF using AWS Textract.',
-                            'is_scanned': True
-                        }
-                    
-                    return {'text': text, 'is_scanned': False}
-                else:
-                    return {
-                        'text': 'This appears to be a scanned PDF. AWS conversion service not configured.',
-                        'is_scanned': True
-                    }
-            
-            return {'text': text, 'is_scanned': False}
+        # Prepare the request to Mistral.ai OCR API
+        # Note: You'll need to replace this with the actual Mistral.ai OCR endpoint
+        headers = {
+            "Authorization": f"Bearer {MISTRAL_API_KEY}",
+            "Content-Type": "application/octet-stream"
+        }
+        
+        # For now, using a placeholder endpoint - replace with actual Mistral.ai OCR endpoint
+        response = requests.post(
+            "https://api.mistral.ai/v1/ocr/extract",  # Replace with actual endpoint
+            headers=headers,
+            data=file_bytes,
+            timeout=60  # 60 second timeout for large files
+        )
+        
+        if response.status_code != 200:
+            print(f"Mistral API error: {response.status_code} - {response.text}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"OCR API error: {response.status_code} - {response.text}"
+            )
+
+        # Parse the response - adjust based on actual Mistral.ai response format
+        ocr_result = response.json()
+        
+        # Extract text from response - adjust field names based on actual API response
+        if 'text' in ocr_result:
+            text = ocr_result['text']
+        elif 'content' in ocr_result:
+            text = ocr_result['content']
+        elif 'result' in ocr_result and 'text' in ocr_result['result']:
+            text = ocr_result['result']['text']
         else:
-            # Handle image files - use AWS Textract for best results
-            text = extract_text_with_aws_textract(file_bytes)
-            if not text:
-                # Fallback to local OCR
-                image = Image.open(io.BytesIO(file_bytes))
-                text = image_to_string(image)
-            return {'text': text, 'is_scanned': False}
-    except UnidentifiedImageError:
-        raise HTTPException(status_code=400, detail='Invalid image or PDF upload')
+            # If we can't find text in expected fields, return the full response for debugging
+            text = str(ocr_result)
+        
+        print(f"Extracted text length: {len(text)}")
+        print(f"Text preview: {text[:500]}...")
+        
+        return {
+            'text': text,
+            'is_scanned': False,
+            'raw_response': ocr_result  # Include raw response for debugging
+        }
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=408, detail='OCR request timed out')
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f'OCR API request failed: {str(e)}')
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'OCR processing failed: {str(e)}')
-    
+
+@app.get('/health')
+async def health_check():
+    return {
+        'status': 'healthy',
+        'mistral_configured': bool(MISTRAL_API_KEY)
+    } 

@@ -19,7 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, 
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype.startsWith('image/') ||
@@ -71,7 +71,6 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         return res.status(409).json({ error: 'Duplicate ticket image detected (DB check). Listing not created.' });
       }
 
-
       const optimizedBuffer = await sharp(uploadBuffer)
         .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 80 })
@@ -90,7 +89,6 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         .from('tickets')
         .getPublicUrl(fileName).data.publicUrl;
     } else {
-
       fileName = `${uuidv4()}.pdf`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('tickets')
@@ -106,16 +104,18 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         .getPublicUrl(fileName).data.publicUrl;
     }
 
-
+    // Use Mistral.ai OCR service
     const formData = new FormData();
     formData.append('file', Buffer.from(uploadBuffer), {
       filename: req.file.originalname,
       contentType: req.file.mimetype
     });
+    
     const ocrResponse = await axios.post('http://localhost:5001/extract-text/', formData, {
       headers: {
         ...formData.getHeaders(),
       },
+      timeout: 120000 // 2 minute timeout for large files
     });
 
     const extractedText = ocrResponse.data.text;
@@ -125,19 +125,19 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
 
     // Parse ticket text
     let parsedFields = {};
-    if (isScanned) {
-        // For scanned PDFs, use default values and let user fill in manually
-        parsedFields = {
-            event_name: 'Scanned Ticket - Manual Entry Required',
-            section: '',
-            row: '',
-            seat: '',
-            event_date: '',
-            price: '',
-            venue: ''
-        };
+    if (isScanned || !extractedText || extractedText.trim() === '') {
+      // For scanned PDFs or when no text is extracted, use default values
+      parsedFields = {
+        event_name: 'Scanned Ticket - Manual Entry Required',
+        section: '',
+        row: '',
+        seat: '',
+        event_date: '',
+        price: '',
+        venue: ''
+      };
     } else {
-        parsedFields = parseTicketText(extractedText);
+      parsedFields = parseTicketText(extractedText);
     }
     
     const fingerprint = generateFingerprint(parsedFields);
@@ -266,7 +266,6 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
   }
 });
 
-
 // Delete listing
 router.delete('/listings/:listingId', async (req, res) => {
   try {
@@ -311,43 +310,6 @@ router.delete('/listings/:listingId', async (req, res) => {
       error: 'Failed to delete listing',
       details: error.message 
     });
-  }
-});
-
-router.post('/resell-ticket/:ticketId', async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-    const { newOwnerId } = req.body;
-
-    const { data: listing, error: fetchError } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('ticket_id', ticketId)
-      .single();
-
-    if (fetchError || !listing) {
-      return res.status(404).json({ error: 'Listing not found' });
-    }
-
-    const { data: updatedListing, error: updateError } = await supabase
-      .from('listings')
-      .update({
-        original_owner_id: newOwnerId,
-        new_owner_id: null, 
-        updated_at: new Date().toISOString()
-      })
-      .eq('ticket_id', ticketId)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw new Error(`Resale update error: ${updateError.message}`);
-    }
-
-    res.json({ success: true, listing: updatedListing });
-  } catch (error) {
-    console.error('Resell ticket error:', error);
-    res.status(500).json({ error: 'Failed to resell ticket', details: error.message });
   }
 });
 
