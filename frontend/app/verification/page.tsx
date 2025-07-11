@@ -76,7 +76,7 @@ export default function VerificationPage() {
     }
   }
 
-  // 🧠 Live face verification loop
+  // Live face verification loop
   useEffect(() => {
     let interval: NodeJS.Timeout
     let timeout: NodeJS.Timeout
