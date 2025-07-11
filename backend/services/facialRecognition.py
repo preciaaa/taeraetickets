@@ -33,6 +33,10 @@ model = InceptionResnetV1(pretrained='vggface2').eval()
 class CompareFacesRequest(BaseModel):
     userId: str
     liveEmbedding: List[float]
+    
+def cosine_similarity(a, b):
+    a, b = np.array(a), np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 @router.post("/extract-embedding")
 async def extract_embedding(
@@ -68,27 +72,44 @@ async def extract_embedding(
 
 
 @router.post("/compare-faces")
-async def compare_faces(payload: CompareFacesRequest):
-    user_id = payload.userId
-    live_embedding = payload.liveEmbedding
+async def compare_faces(
+    file: UploadFile = File(...),
+    user_id: str = Form(...)
+):
+    # Read image from request
+    image_bytes = await file.read()
+    np_arr = np.frombuffer(image_bytes, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+    # Preprocess and extract live embedding
+    pil_img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    preprocess = transforms.Compose([
+        transforms.Resize((160, 160)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    ])
+    img_tensor = preprocess(pil_img).unsqueeze(0)
+
+    with torch.no_grad():
+        live_embedding = model(img_tensor).squeeze().numpy().tolist()
 
     async with httpx.AsyncClient() as client:
         try:
-            user_response = await client.get(f"http://localhost:3000/users/{user_id}")
+            user_response = await client.get(f"http://localhost:5000/users/{user_id}")
             user_response.raise_for_status()
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=e.response.status_code, detail="User not found")
 
-    stored_embedding_raw = user_response.json().get("face_embedding")
-    stored_embedding = json.loads(stored_embedding_raw) if isinstance(stored_embedding_raw, str) else stored_embedding_raw
+        stored_embedding_raw = user_response.json().get("face_embedding")
+        if stored_embedding_raw is None:
+            raise HTTPException(status_code=404, detail="Stored face embedding not found")
 
-    if len(stored_embedding) != len(live_embedding):
-        raise HTTPException(status_code=400, detail="Embedding lengths do not match")
+        stored_embedding = json.loads(stored_embedding_raw)
 
-    distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(stored_embedding, live_embedding)))
-    match = distance < 0.6
+        similarity = cosine_similarity(stored_embedding, live_embedding)
+        match = bool(similarity > 0.6)  # Cast to native Python bool
 
-    if match:
-        await client.post(f"http://localhost:3000/users/{user_id}/verification", json={"verified": True})
+        if match:
+            await client.put(f"http://localhost:5000/users/{user_id}/verification", json={"verified": True})
 
-    return {"match": match, "distance": distance}
+    return {"match": match}

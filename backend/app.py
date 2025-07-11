@@ -8,7 +8,7 @@ from services import facialRecognition
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",  # your React frontend origin
+    "http://localhost:3000",  # React frontend origin
     "http://127.0.0.1:3000",
     # Add more origins if needed
 ]
