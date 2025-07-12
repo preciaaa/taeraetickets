@@ -6,46 +6,57 @@ const router = express.Router()
 
 // Add to cart
 router.post('/cart', async (req, res) => {
-    const { user_id, ticket_id, quantity } = req.body;
-
+    const { user_id, ticket_id } = req.body;
+  
+    // Get price for this ticket
+    const { data: listing, error: listingError } = await supabase
+      .from('listings')
+      .select('price')
+      .eq('ticket_id', ticket_id)
+      .single();
+  
+    if (listingError || !listing) {
+      return res.status(400).json({ error: 'Ticket not found in listings' });
+    }
+  
+    const total_amount = listing.price;
+  
+    // Insert ticket into cart
     const { error } = await supabase
-        .from('cart')
-        .upsert([{ user_id, ticket_id, quantity }], { onConflict: ['user_id', 'ticket_id'] });
-
+      .from('cart')
+      .insert([{ user_id, ticket_id, total_amount }]);
+  
     if (error) return res.status(500).json({ error });
-    res.json({ success: true });
-});
+  
+    res.json({ success: true, total_amount });
+  });
 
 // Get all cart items with ticket details
 router.get('/cart/:user_id', async (req, res) => {
     const { user_id } = req.params;
   
-    // 1. Get all cart items for user
     const { data: cartItems, error: cartError } = await supabase
       .from('cart')
-      .select('ticket_id, quantity')
+      .select('ticket_id, total_amount')
       .eq('user_id', user_id);
   
     if (cartError) return res.status(500).json({ error: cartError.message });
     if (!cartItems || cartItems.length === 0) return res.json([]);
   
-    // 2. Extract ticket IDs from cart
     const ticketIds = cartItems.map(c => c.ticket_id);
   
-    // 3. Query listings using resale_ticket_id matching ticketIds
     const { data: listings, error: listingsError } = await supabase
       .from('listings')
-      .select('resale_ticket_id, event_name, category, section, row, seat_number, date, price')
-      .in('resale_ticket_id', ticketIds);
+      .select('ticket_id, event_name, category, section, row, seat_number, date, price')
+      .in('ticket_id', ticketIds);
   
     if (listingsError) return res.status(500).json({ error: listingsError.message });
   
-    // 4. Merge cart quantities with listings matching on ticket_id <-> resale_ticket_id
     const merged = cartItems.map(cartItem => {
-      const listing = listings.find(l => l.resale_ticket_id === cartItem.ticket_id);
+      const listing = listings.find(l => l.ticket_id === cartItem.ticket_id);
       return {
         ticket_id: cartItem.ticket_id,
-        quantity: cartItem.quantity,
+        total_amount: cartItem.total_amount,
         event_name: listing?.event_name || null,
         category: listing?.category || null,
         section: listing?.section || null,
@@ -58,22 +69,43 @@ router.get('/cart/:user_id', async (req, res) => {
   
     res.json(merged);
   });
-  
+
 
 // Remove from cart
 router.delete('/cart/:user_id/:ticket_id', async (req, res) => {
     const { user_id, ticket_id } = req.params;
-
-    const { error } = await supabase
-        .from('cart')
-        .delete()
-        .eq('user_id', user_id)
-        .eq('ticket_id', ticket_id);
-
-    if (error) return res.status(500).json({ error });
-
+  
+    // Step 1: Find the ctid of one matching row
+    const { data: rows, error: selectError } = await supabase
+      .from('cart')
+      .select('ctid')
+      .eq('user_id', user_id)
+      .eq('ticket_id', ticket_id)
+      .limit(1);
+  
+    if (selectError) {
+      return res.status(500).json({ error: selectError.message });
+    }
+  
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found in cart' });
+    }
+  
+    const ctid = rows[0].ctid;
+  
+    // Step 2: Delete the row using the ctid system column
+    // Supabase JS client doesn't support filtering by ctid directly,
+    // so we use raw SQL through RPC or direct query.
+  
+    // Use Supabase's rpc or query functionality to run raw SQL
+    // Here’s how you can run raw SQL with Supabase JS:
+  
+    const { data, error } = await supabase.rpc('delete_cart_row_by_ctid', { row_ctid: ctid });
+  
+    if (error) return res.status(500).json({ error: error.message });
+  
     res.json({ success: true });
-});
+  });
 
 module.exports = router;
 
