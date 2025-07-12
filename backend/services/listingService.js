@@ -154,6 +154,34 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     
     // Handle event_id logic - check if event exists, create if not
     let eventId = null;
+    let eventDate = null;
+    
+    // Parse the date string to a proper date format
+    if (parsedFields.event_date) {
+      try {
+        // Handle formats like "wed_4_sep_2024,_8:00PM"
+        const dateStr = parsedFields.event_date.replace(/,/g, '').replace(/\*\*/g, '');
+        const dateMatch = dateStr.match(/(\w{3})_(\d{1,2})_(\w{3})_(\d{4})/);
+        if (dateMatch) {
+          const [_, dayName, day, month, year] = dateMatch;
+          const monthMap = {
+            'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+            'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+          };
+          if (monthMap[month.toLowerCase()]) {
+            eventDate = new Date(parseInt(year), monthMap[month.toLowerCase()], parseInt(day));
+          }
+        } else {
+          // Try standard date format
+          eventDate = new Date(parsedFields.event_date);
+        }
+      } catch (error) {
+        console.error('Error parsing date:', error);
+      }
+    }
+
+    console.log('Parsed event date:', eventDate);
+    
     if (parsedFields.event_name && parsedFields.event_name !== 'Scanned Ticket - Manual Entry Required') {
       // Check if event already exists
       const { data: existingEvent, error: eventCheckError } = await supabase
@@ -161,7 +189,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         .select('id')
         .eq('title', parsedFields.event_name)
         .eq('venue', parsedFields.venue)
-        .eq('date', parsedFields.event_date ? new Date(parsedFields.event_date) : null)
+        .eq('date', eventDate)
         .single();
       
       if (eventCheckError && eventCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -178,7 +206,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
           .insert({
             title: parsedFields.event_name,
             venue: parsedFields.venue || '',
-            date: parsedFields.event_date ? new Date(parsedFields.event_date) : null,
+            date: eventDate,
             description: `Event at ${parsedFields.venue || 'Unknown venue'}`,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -198,6 +226,19 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     const fingerprint = generateFingerprint(parsedFields);
 
     // Create listing record in database
+    console.log('Creating listing with fields:', {
+      ticket_id: 'uuidv4()',
+      event_id: eventId,
+      original_owner_id: userId,
+      event_name: parsedFields.event_name || 'Unknown Event',
+      section: parsedFields.section || '',
+      row: parsedFields.row || '',
+      seat_number: parsedFields.seat || null,
+      price: parsedFields.price ? parseFloat(parsedFields.price) : null,
+      category: parsedFields.category || 'General',
+      fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat)
+    });
+
     const { data: listing, error: dbError } = await supabase
       .from('listings')
       .insert({
@@ -210,8 +251,8 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         seat_number: parsedFields.seat || null,
         new_owner_id: null,
         status: 'active',
-        date: parsedFields.event_date ? new Date(parsedFields.event_date) : null,
-        price: null, // Will be set by pricing algorithm later
+        date: eventDate,
+        price: parsedFields.price ? parseFloat(parsedFields.price) : null, // Parse price as float
         fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
         category: parsedFields.category || 'General',
         image_url: null, // Will be retrieved from Ticketmaster later
