@@ -17,7 +17,7 @@ export const useCustomSessionTimer = () => {
 
     useEffect(() => {
         const startStr = localStorage.getItem('customSessionStart')
-        console.log('SessionTimerWrapper mounted, startStr:', startStr)
+        // console.log('SessionTimerWrapper mounted, startStr:', startStr)
 
         if (!startStr) return
 
