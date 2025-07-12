@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Upload, FileText, Image, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabaseClient'
 
 interface ExtractedFields {
   event_name?: string
@@ -68,11 +69,17 @@ export default function NewListing() {
     setUploading(true)
     
     try {
+      // Get current user from Supabase auth
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        toast.error('Please log in to upload tickets')
+        setUploading(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('ticket', file)
-      
-      // Get current user ID (you'll need to implement this based on your auth)
-      const user = { id: 'current-user-id' } // Replace with actual user ID
       formData.append('userId', user.id)
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload-ticket`, {

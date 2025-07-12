@@ -13,7 +13,7 @@ const { generateFingerprint } = require('../utils/fingerprint');
 const router = express.Router();
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const storage = multer.memoryStorage();
@@ -47,7 +47,6 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     let fileName;
 
     if (!isPdf) {
-      // Check for duplicate image using deduplication service
       const dedupFormData = new FormData();
       dedupFormData.append('image', Buffer.from(uploadBuffer), {
         filename: req.file.originalname,
@@ -58,7 +57,6 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       });
       embedding = dedupResponse.data.embedding;
 
-      // Query Supabase for similar embeddings (vector search)
       const { data: similarListings, error: matchError } = await supabase.rpc('match_embedding', {
         query_embedding: embedding,
         match_threshold: 0.5,
@@ -76,35 +74,46 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         .jpeg({ quality: 80 })
         .toBuffer();
       fileName = `${uuidv4()}.jpg`;
+      
+      console.log('Attempting to upload image:', fileName);
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('tickets')
         .upload(fileName, optimizedBuffer, {
           contentType: 'image/jpeg',
           cacheControl: '3600'
         });
+      
       if (uploadError) {
+        console.error('Storage upload error details:', uploadError);
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
+      
+      console.log('Image upload successful:', uploadData);
       publicUrl = supabase.storage
         .from('tickets')
         .getPublicUrl(fileName).data.publicUrl;
     } else {
       fileName = `${uuidv4()}.pdf`;
+      
+      console.log('Attempting to upload PDF:', fileName);
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('tickets')
         .upload(fileName, uploadBuffer, {
           contentType: 'application/pdf',
           cacheControl: '3600'
         });
+      
       if (uploadError) {
+        console.error('Storage upload error details:', uploadError);
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
+      
+      console.log('PDF upload successful:', uploadData);
       publicUrl = supabase.storage
         .from('tickets')
         .getPublicUrl(fileName).data.publicUrl;
     }
 
-    // Use Mistral.ai OCR service
     const formData = new FormData();
     formData.append('file', Buffer.from(uploadBuffer), {
       filename: req.file.originalname,
@@ -129,15 +138,61 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       // For scanned PDFs or when no text is extracted, use default values
       parsedFields = {
         event_name: 'Scanned Ticket - Manual Entry Required',
+        venue: '',
+        event_date: '',
         section: '',
         row: '',
         seat: '',
-        event_date: '',
         price: '',
-        venue: ''
+        category: 'General'
       };
     } else {
       parsedFields = parseTicketText(extractedText);
+    }
+    
+    console.log('Parsed fields:', parsedFields);
+    
+    // Handle event_id logic - check if event exists, create if not
+    let eventId = null;
+    if (parsedFields.event_name && parsedFields.event_name !== 'Scanned Ticket - Manual Entry Required') {
+      // Check if event already exists
+      const { data: existingEvent, error: eventCheckError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('title', parsedFields.event_name)
+        .eq('venue', parsedFields.venue)
+        .eq('date', parsedFields.event_date ? new Date(parsedFields.event_date) : null)
+        .single();
+      
+      if (eventCheckError && eventCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking for existing event:', eventCheckError);
+      }
+      
+      if (existingEvent) {
+        eventId = existingEvent.id;
+        console.log('Found existing event with ID:', eventId);
+      } else {
+        // Create new event
+        const { data: newEvent, error: createEventError } = await supabase
+          .from('events')
+          .insert({
+            title: parsedFields.event_name,
+            venue: parsedFields.venue || '',
+            date: parsedFields.event_date ? new Date(parsedFields.event_date) : null,
+            description: `Event at ${parsedFields.venue || 'Unknown venue'}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        if (createEventError) {
+          console.error('Error creating new event:', createEventError);
+        } else {
+          eventId = newEvent.id;
+          console.log('Created new event with ID:', eventId);
+        }
+      }
     }
     
     const fingerprint = generateFingerprint(parsedFields);
@@ -147,19 +202,21 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       .from('listings')
       .insert({
         ticket_id: uuidv4(),
+        event_id: eventId,
         original_owner_id: userId,
         event_name: parsedFields.event_name || 'Unknown Event',
         section: parsedFields.section || '',
         row: parsedFields.row || '',
-        seat_number: parsedFields.seat ? parseInt(parsedFields.seat) : null,
+        seat_number: parsedFields.seat || null,
+        new_owner_id: null,
         status: 'active',
         date: parsedFields.event_date ? new Date(parsedFields.event_date) : null,
-        price: parsedFields.price ? parseFloat(parsedFields.price.replace(/[^0-9.]/g, '')) : null,
-        fixed_seating: true,
-        category: 'ticket',
-        image_url: publicUrl,
+        price: null, // Will be set by pricing algorithm later
+        fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
+        category: parsedFields.category || 'General',
+        image_url: null, // Will be retrieved from Ticketmaster later
         parsed_fields: parsedFields,
-        fingerprint: fingerprint,
+        fingerprint: null, // Will be set by image duplication verification later
         is_verified: false,
         verified_at: null,
         created_at: new Date().toISOString(),
