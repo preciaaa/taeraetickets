@@ -7,6 +7,7 @@ const authService = require('./services/authService');
 const userService = require('./services/userService');
 const recaptchaService = require('./services/recaptchaService');
 const facialRecognition = require('./services/facialRecognition');
+const paymentService = require('./services/paymentService');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
 app.use('/', facialRecognition);
+app.use('/', paymentService);
 
 // Start the server
 const port = process.env.PORT || 5000;
