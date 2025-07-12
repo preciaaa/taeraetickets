@@ -8,7 +8,6 @@ const userService = require('./services/userService');
 const recaptchaService = require('./services/recaptchaService');
 const facialRecognition = require('./services/facialRecognition');
 const paymentService = require('./services/paymentService');
-
 const app = express();
 
 // General Middleware

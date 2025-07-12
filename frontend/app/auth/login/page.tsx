@@ -57,8 +57,17 @@ export default function SignIn() {
       setError(error.message)
       setLoading(false)
     } else {
-      localStorage.setItem('customSessionStart', Date.now().toString())
-      window.location.href = '/events'
+      // ✅ Fetch user and store user_id
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (user) {
+        localStorage.setItem('user_id', user.id)
+        localStorage.setItem('customSessionStart', Date.now().toString())
+        window.location.href = '/events'
+      } else {
+        console.error('User fetch error:', userError?.message)
+        setError('Signed in, but failed to get user info.')
+        setLoading(false)
+      }
     }
   }
 
