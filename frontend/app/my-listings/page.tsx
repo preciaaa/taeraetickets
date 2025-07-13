@@ -164,12 +164,12 @@ export default function MyListings() {
   };
 
   const getStatusBadge = (listing: Listing) => {
-    if (listing.is_verified) {
-      return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
-    } else if (listing.status === 'pending_verification') {
-      return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
-    } else {
+    if (listing.is_verified === true) {
+      return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Verified</Badge>;
+    } else if (listing.is_verified === null && listing.status === 'rejected') {
       return <Badge className="bg-red-100 text-red-800"><AlertCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+    } else {
+      return <Badge className="bg-gray-200 text-gray-700"><AlertCircle className="w-3 h-3 mr-1" />Unverified</Badge>;
     }
   };
 
@@ -194,159 +194,165 @@ export default function MyListings() {
   }
 
     return (
-      <>
-        <div className="px-6 py-10">
-            <h1 className="text-2xl font-bold mb-4">My listings</h1>
-            {loading && <div>Loading...</div>}
-            {error && <div className="text-red-500">{error}</div>}
-            {!loading && !error && (
-                listings.length === 0 ? (
-                    <>
-                      <div>No tickets listed for resale.</div>
-                      <Button 
-                        onClick={() => router.push('/my-listings/new')}
-                        className="bg-blue-600 hover:bg-blue-700 mt-4"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Your First Listing
-                      </Button>
-                    </>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-4">
-                        {listings.map((listing) => (
-                            <div
-                                key={listing.id || listing.resale_ticket_id}
-                                className="bg-white rounded-lg shadow-md border p-6 flex flex-col gap-2"
-                            >
-                                <div className="text-lg font-bold mb-1">
-                                    {listing.event_name || 'Event'}
-                                </div>
-                                <div className="text-sm text-gray-600 mb-1">
-                                    Section: {listing.section ?? '-'}, Row: {listing.row ?? '-'}, Seat: {listing.seat_number ?? '-'}
-                                </div>
-                                <div>
-                                    <span className="font-semibold">Status:</span> <span className={`inline-block px-2 py-1 rounded text-xs ${listing.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>{listing.status}</span>
-                                </div>
-                                <div>
-                                    <span className="font-semibold">Price:</span> ${listing.price}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )
-            )}
-        </div>
-        <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Listings</h1>
-          <p className="text-gray-600 mt-2">Manage your uploaded tickets</p>
-        </div>
-        <Button 
-          onClick={() => router.push('/my-listings/new')}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Listing
-        </Button>
-      </div>
-
-      {listings.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Plus className="w-8 h-8 text-gray-400" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 overflow-x-hidden">
+        <div className="relative z-10 max-w-5xl mx-auto px-4">
+          <div className="mb-10">
+            <div className="rounded-2xl shadow-md bg-white/80 border border-gray-200 px-8 py-6 flex flex-col items-center md:items-start card-glass">
+              <h1 className="text-4xl font-extrabold text-gray-900 mb-2 text-center md:text-left">My Listings</h1>
+              <p className="text-gray-600 text-lg mb-4 text-center md:text-left">Manage your uploaded tickets here.</p>
+              <Button 
+                onClick={() => router.push('/my-listings/new')}
+                className="bg-blue-600 hover:bg-blue-700 self-center md:self-end"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Listing
+              </Button>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No listings yet</h3>
-            <p className="text-gray-600 mb-6">Start by uploading your first ticket</p>
-            <Button 
-              onClick={() => router.push('/my-listings/new')}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Listing
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {listings.map((listing) => (
-            <Card key={listing.id} className="overflow-hidden">
-              <div className="aspect-video bg-gray-100 relative">
-                <img
-                  src={listing.image_url}
-                  alt="Ticket"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-2 right-2">
-                  {getStatusBadge(listing)}
+          </div>
+          {listings.length === 0 ? (
+            <Card className="text-center py-16 bg-white/90 shadow-lg border border-gray-200 animate-fade-in-scale card-glass">
+              <CardContent>
+                <div className="mx-auto w-28 h-28 bg-blue-100 rounded-full flex items-center justify-center mb-6 shadow">
+                  <Plus className="w-12 h-12 text-blue-400" />
                 </div>
-              </div>
-              
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">
-                  {listing.parsed_fields?.event_name || 'Event Ticket'}
-                </CardTitle>
-                <CardDescription>
-                  {listing.parsed_fields?.event_date || 'Date not specified'}
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                <div className="space-y-2 mb-4">
-                  {listing.parsed_fields?.venue && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Venue:</span> {listing.parsed_fields.venue}
-                    </p>
-                  )}
-                  {listing.parsed_fields?.seat && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Seat:</span> {listing.parsed_fields.seat}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-500">
-                    Uploaded: {formatDate(listing.created_at)}
-                  </p>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(listing.image_url, '_blank')}
-                    className="flex-1"
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  
-                  {!listing.is_verified && listing.status === 'pending_verification' && (
-                    <Button
-                      size="sm"
-                      onClick={() => confirmListing(listing.id)}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Confirm
-                    </Button>
-                  )}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteListing(listing.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">No listings yet</h3>
+                <p className="text-gray-600 mb-8 text-lg">Start by uploading your first ticket for resale.</p>
+                <Button 
+                  onClick={() => router.push('/my-listings/new')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Listing
+                </Button>
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+              {listings.map((listing, idx) => {
+                const isPdf = listing.image_url && listing.image_url.toLowerCase().endsWith('.pdf');
+                return (
+                  <div key={listing.ticket_id} className="flex animate-fade-in-scale" style={{ animationDelay: `${idx * 60}ms` }}>
+                    <div className="card-accent flex-shrink-0" />
+                    <Card className="overflow-hidden rounded-2xl card-glass shadow-lg border border-gray-200 transition-transform hover:scale-[1.025] hover:shadow-xl">
+                      <div className="relative group">
+                        <div
+                          className="aspect-video bg-gray-100 flex items-center justify-center border-b border-gray-200 group-hover:border-blue-400 transition-all cursor-pointer"
+                          onClick={() => window.open(listing.image_url, '_blank')}
+                          title={isPdf ? 'View PDF' : 'View image'}
+                        >
+                          {isPdf ? (
+                            <>
+                              <embed
+                                src={listing.image_url + '#toolbar=0&navpanes=0&scrollbar=0'}
+                                type="application/pdf"
+                                className="w-full h-full min-h-[180px] rounded-t-2xl bg-white"
+                                style={{ maxHeight: 220 }}
+                                onError={(e) => {
+                                  const target = e.target as HTMLElement;
+                                  if (target) {
+                                    (target as HTMLElement).style.display = 'none';
+                                    const fallback = target.nextSibling as HTMLElement | null;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                              <div className="flex-col items-center justify-center w-full h-full hidden" style={{ minHeight: 180 }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 text-red-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                <span className="text-xs text-gray-500 mt-2">PDF Preview not available</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2"
+                                  onClick={(e) => { e.stopPropagation(); window.open(listing.image_url, '_blank'); }}
+                                >
+                                  View PDF
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <img
+                              src={listing.image_url}
+                              alt="Ticket"
+                              className="w-full h-full object-cover rounded-t-2xl group-hover:opacity-90 transition-all"
+                            />
+                          )}
+                          <div className="absolute top-2 left-2 z-10">
+                            {getStatusBadge(listing)}
+                          </div>
+                        </div>
+                      </div>
+                      <CardHeader className="pb-2 pt-4 px-6">
+                        <CardTitle className="text-xl font-extrabold text-gray-900 mb-1 truncate">
+                          {listing.parsed_fields?.event_name || listing.event_name || 'Event Ticket'}
+                        </CardTitle>
+                        <CardDescription className="text-base text-gray-500">
+                          {listing.parsed_fields?.event_date || listing.date || 'Date not specified'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0 px-6 pb-4">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-4 text-sm">
+                          {listing.parsed_fields?.venue && (
+                            <div className="col-span-2 text-gray-700">
+                              <span className="font-medium">Venue:</span> {listing.parsed_fields.venue}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-medium">Section:</span> {listing.parsed_fields?.section || listing.section || '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Row:</span> {listing.parsed_fields?.row || listing.row || '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Seat:</span> {listing.parsed_fields?.seat || listing.seat_number || '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Price:</span> ${listing.parsed_fields?.price || listing.price || '-'}
+                          </div>
+                          <div className="col-span-2 text-gray-400 text-xs mt-2">
+                            Uploaded: {formatDate(listing.created_at)}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(listing.image_url, '_blank')}
+                            className="flex-1"
+                            title="View ticket image or PDF"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          {!listing.is_verified && (
+                            <Button
+                              size="sm"
+                              onClick={() => confirmListing(listing.ticket_id)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                              title="Verify this listing"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Verify Listing
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteListing(listing.ticket_id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-1"
+                            title="Delete this listing"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-      </>
+      </div>
     )
 }
 
