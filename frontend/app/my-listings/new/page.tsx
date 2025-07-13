@@ -19,7 +19,7 @@ interface ExtractedFields {
   section?: string
   row?: string
   seat_number?: string
-  price?: string
+  category?: string
 }
 
 export default function NewListing() {
@@ -193,10 +193,9 @@ export default function NewListing() {
         section: extractedFields.section || '',
         row: extractedFields.row || null,
         seat_number: extractedFields.seat_number || null,
-        price: extractedFields.price ? parseFloat(extractedFields.price) : null,
+        category: extractedFields.category || 'General',
         venue: extractedFields.venue || '',
         date: extractedFields.date || processedData.eventDate,
-        category: 'General',
         image_url: processedData.publicUrl,
         parsed_fields: extractedFields,
         fingerprint: processedData.fingerprint,
@@ -439,22 +438,22 @@ export default function NewListing() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+                  <Input
+                    id="category"
+                    value={extractedFields.category || ''}
+                    onChange={(e) => updateField('category', e.target.value)}
+                    placeholder="Category"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="seat" className="text-sm font-medium">Seat</Label>
                   <Input
                     id="seat"
                     value={extractedFields.seat_number || ''}
                     onChange={(e) => updateField('seat_number', e.target.value)}
                     placeholder="Seat"
-                    className="rounded-lg py-2.5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price" className="text-sm font-medium">Price</Label>
-                  <Input
-                    id="price"
-                    value={extractedFields.price || ''}
-                    onChange={(e) => updateField('price', e.target.value)}
-                    placeholder="Price"
                     className="rounded-lg py-2.5"
                   />
                 </div>
