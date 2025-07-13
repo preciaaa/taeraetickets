@@ -134,17 +134,68 @@ async def extract_text(file: UploadFile = File(...)):
         if hasattr(ocr_response, 'pages') and ocr_response.pages:
             # Extract text from pages using markdown attribute
             page_texts = []
+            image_names = []
             for page in ocr_response.pages:
                 if hasattr(page, 'markdown') and page.markdown:
                     page_texts.append(page.markdown)
+                # Collect image names from markdown
+                if hasattr(page, 'markdown') and page.markdown:
+                    import re
+                    image_names += re.findall(r'!\[.*?\]\((img-\d+\.jpeg)\)', page.markdown)
             extracted_text = '\n'.join(page_texts) if page_texts else str(ocr_response)
         elif hasattr(ocr_response, 'text') and ocr_response.text:
             extracted_text = ocr_response.text
+            image_names = []
         elif hasattr(ocr_response, 'content') and ocr_response.content:
             extracted_text = ocr_response.content
+            image_names = []
         else:
             # Fallback to string representation
             extracted_text = str(ocr_response)
+            image_names = []
+
+        # Fallback: If event name is missing from extracted_text, try OCR on first image after last banner
+        def event_name_missing(text):
+            lines = text.split('\n')
+            last_ticket_idx = -1
+            for i, line in enumerate(lines):
+                if 'THIS IS YOUR TICKET' in line:
+                    last_ticket_idx = i
+            if last_ticket_idx != -1:
+                for i in range(last_ticket_idx + 1, len(lines)):
+                    l = lines[i].strip()
+                    if l and not l.startswith('!['):
+                        # Found a candidate event name
+                        return False
+            return True
+
+        if event_name_missing(extracted_text) and image_names:
+            # Try OCR on the first image after the last banner
+            img_name = image_names[0]
+            # Download the image from Supabase storage
+            img_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{img_name}"
+            img_ocr_response = client.ocr.process(
+                model="mistral-ocr-latest",
+                document={
+                    "type": "document_url",
+                    "document_url": img_url
+                },
+                include_image_base64=False
+            )
+            # Extract text from image OCR
+            img_text = None
+            if hasattr(img_ocr_response, 'pages') and img_ocr_response.pages:
+                for page in img_ocr_response.pages:
+                    if hasattr(page, 'markdown') and page.markdown:
+                        img_text = page.markdown.strip()
+                        break
+            elif getattr(img_ocr_response, 'text', None):
+                img_text = img_ocr_response.text.strip()
+            elif getattr(img_ocr_response, 'content', None):
+                img_text = img_ocr_response.content.strip()
+            # Append the image OCR result to the main text for the parser
+            if img_text:
+                extracted_text += f"\n{img_text}"
 
         return {
             "text": extracted_text,

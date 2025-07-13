@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 function generateFingerprint(fields) {
     const sortedEntries = Object.entries(fields)
-        .map(([k, v]) => `${k.trim().toLowerCase()}=${v.trim().toLowerCase()}`)
+        .map(([k, v]) => `${(k || '').trim().toLowerCase()}=${(v == null ? '' : v.toString().trim().toLowerCase())}`)
         .sort();
 
     const joined = sortedEntries.join('|'); 
