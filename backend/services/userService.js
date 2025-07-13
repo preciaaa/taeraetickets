@@ -73,6 +73,33 @@ router.put('/users/:id/verification', async (req, res) => {
 	}
 });
 
+router.get('/users/:id/verification', async (req, res) => {
+	const userId = req.params.id
+  
+	try {
+	  const { data: user, error } = await supabase
+		.from('users')
+		.select('verified')
+		.eq('id', userId)
+		.single()
+  
+	  if (error) {
+		console.error('Supabase error:', error)
+		return res.status(500).json({ message: 'Supabase error' })
+	  }
+  
+	  if (!user) {
+		return res.status(404).json({ message: 'User not found' })
+	  }
+  
+	  return res.json({ verified: user.verified })
+	} catch (err) {
+	  console.error('Server error:', err)
+	  res.status(500).json({ message: 'Server error' })
+	}
+  })
+  
+
 // DELETE a user by ID
 router.delete('/users/:id', async (req, res) => {
 	try {
