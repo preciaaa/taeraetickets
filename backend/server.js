@@ -9,6 +9,7 @@ const fs = require('fs');
 const authService = require('./services/authService');
 const userService = require('./services/userService');
 const recaptchaService = require('./services/recaptchaService');
+const paymentService = require('./services/paymentService');
 const eventService = require('./services/eventService');
 const listingService = require('./services/listingService');
 const parseTicketText = require('./utils/parser');
@@ -37,7 +38,8 @@ app.get('/health', (req, res) => {
 app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
-app.use('/', eventService);
+app.use('/', paymentService);
+app.use('/', eventService); 
 app.use('/', listingService);
 app.use('/', cartService);
 

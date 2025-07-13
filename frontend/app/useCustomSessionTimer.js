@@ -45,6 +45,7 @@ export const useCustomSessionTimer = () => {
                 console.log('Session expired, logging out')
                 clearInterval(interval)
                 supabase.auth.signOut()
+                localStorage.removeItem('user_id');
                 localStorage.removeItem('customSessionStart')
                 localStorage.removeItem('hasReloadedAfterSignup')
                 router.push('/auth/login')
