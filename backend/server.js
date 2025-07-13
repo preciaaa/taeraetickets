@@ -14,7 +14,6 @@ const eventService = require('./services/eventService');
 const listingService = require('./services/listingService');
 const parseTicketText = require('./utils/parser');
 const generateFingerprint = require('./utils/fingerprint');
-const cartService = require('./services/cartService');  
 
 const app = express();
 
@@ -39,9 +38,8 @@ app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
 app.use('/', paymentService);
-app.use('/', eventService); 
+app.use('/', eventService);
 app.use('/', listingService);
-app.use('/', cartService);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -53,13 +51,10 @@ app.use('*', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
-});
-app.use('/', eventService);
-app.use('/', listingService);
+});   
 
 // Start the server
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
-    console.log(`Health check available at http://localhost:${port}/health`);
 });

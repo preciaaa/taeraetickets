@@ -269,5 +269,4 @@ function parseTicketText(text) {
     console.log('Final extracted fields:', fields);
     return fields;
 }
-
 module.exports = { parseTicketText };
