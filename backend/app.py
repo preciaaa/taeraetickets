@@ -4,6 +4,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services import facialRecognition
+from services import webScrapingService
 
 app = FastAPI()
 
@@ -23,3 +24,4 @@ app.add_middleware(
 
 # Routes from service modules
 app.include_router(facialRecognition.router)
+app.include_router(webScrapingService.router)
