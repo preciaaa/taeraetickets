@@ -9,7 +9,7 @@ const fs = require('fs');
 const authService = require('./services/authService');
 const userService = require('./services/userService');
 const recaptchaService = require('./services/recaptchaService');
-const facialRecognition = require('./services/facialRecognition');
+const eventService = require('./services/eventService');
 const listingService = require('./services/listingService');
 const parseTicketText = require('./utils/parser');
 const generateFingerprint = require('./utils/fingerprint');
@@ -37,9 +37,9 @@ app.get('/health', (req, res) => {
 app.use('/', authService);
 app.use('/', userService);
 app.use('/', recaptchaService);
-app.use('/', facialRecognition);
-app.use('/', cartService);
+app.use('/', eventService);
 app.use('/', listingService);
+app.use('/', cartService);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -54,7 +54,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
     console.log(`Health check available at http://localhost:${port}/health`);
