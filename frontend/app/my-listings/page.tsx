@@ -296,6 +296,11 @@ export default function MyListings() {
                               <span className="font-medium">Venue:</span> {listing.parsed_fields.venue}
                             </div>
                           )}
+                          {(listing.parsed_fields?.category || listing.category) && (
+                            <div className="col-span-2 text-gray-700">
+                              <span className="font-medium">Category:</span> {listing.parsed_fields?.category || listing.category}
+                            </div>
+                          )}
                           <div>
                             <span className="font-medium">Section:</span> {listing.parsed_fields?.section || listing.section || '-'}
                           </div>
@@ -323,17 +328,6 @@ export default function MyListings() {
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          {!listing.is_verified && (
-                            <Button
-                              size="sm"
-                              onClick={() => confirmListing(listing.ticket_id)}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                              title="Verify this listing"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Verify Listing
-                            </Button>
-                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -344,6 +338,19 @@ export default function MyListings() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
+                        {!listing.is_verified && (
+                          <div className="flex mt-2">
+                            <Button
+                              size="sm"
+                              onClick={() => confirmListing(listing.ticket_id)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                              title="Verify this listing"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Verify Listing
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
