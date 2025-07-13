@@ -9,6 +9,7 @@ const sharp = require('sharp');
 const FormData = require('form-data');
 const { parseTicketText } = require('../utils/parser');
 const { generateFingerprint } = require('../utils/fingerprint');
+const pdf = require('pdf-parse');
 
 const router = express.Router();
 
@@ -48,6 +49,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     let publicUrl = null;
     let uploadBuffer = req.file.buffer;
     let fileName;
+    let phash = null; // <-- define phash here
 
     if (!isPdf) {
       const dedupFormData = new FormData();
@@ -59,6 +61,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         headers: dedupFormData.getHeaders(),
       });
       embedding = dedupResponse.data.embedding;
+      phash = dedupResponse.data.phash;
 
       const { data: similarListings, error: matchError } = await supabase.rpc('match_embedding', {
         query_embedding: embedding,
@@ -95,8 +98,19 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       publicUrl = supabase.storage
         .from('tickets')
         .getPublicUrl(fileName).data.publicUrl;
+      // Save phash for image
     } else {
       fileName = `${uuidv4()}.pdf`;
+      // For PDFs, also get phash from deduplication service
+      const dedupFormData = new FormData();
+      dedupFormData.append('file', Buffer.from(uploadBuffer), {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype
+      });
+      const dedupResponse = await axios.post('http://localhost:5002/check-duplicate', dedupFormData, {
+        headers: dedupFormData.getHeaders(),
+      });
+      phash = dedupResponse.data.phash;
       
       console.log('Attempting to upload PDF:', fileName);
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -115,6 +129,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       publicUrl = supabase.storage
         .from('tickets')
         .getPublicUrl(fileName).data.publicUrl;
+      // Save phash for PDF
     }
 
     const formData = new FormData();
@@ -140,14 +155,14 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     if (isScanned || !extractedText || extractedText.trim() === '') {
       // For scanned PDFs or when no text is extracted, use default values
       parsedFields = {
-        event_name: 'Scanned Ticket - Manual Entry Required',
+        event_name: '',
         venue: '',
         event_date: '',
         section: '',
         row: '',
         seat: '',
         price: '',
-        category: 'General'
+        category: ''
       };
     } else {
       parsedFields = parseTicketText(extractedText);
@@ -239,7 +254,8 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       seat_number: parsedFields.seat || null,
       price: parsedFields.price ? parseFloat(parsedFields.price) : null,
       category: parsedFields.category || 'General',
-      fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat)
+      fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
+      phash // Add phash to log
     });
 
     const { data: listing, error: dbError } = await supabase
@@ -270,7 +286,8 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         verified_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        embedding: embedding
+        embedding: embedding,
+        phash // Store phash in DB
       })
       .select()
       .single();
@@ -341,15 +358,46 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
       return res.status(404).json({ error: 'Listing not found or unauthorized' });
     }
 
-    // Update listing status
-    const { data: updatedListing, error: updateError } = await supabase
-      .from('listings')
-      .update({
+    // Download the file (image or PDF) from Supabase Storage
+    const fileUrl = listing.image_url;
+    const fileResponse = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+    const fileBuffer = Buffer.from(fileResponse.data);
+    const fileName = fileUrl.split('/').pop() || 'file';
+    const fileMime = fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+
+    // Send file to deduplication service
+    const formData = new FormData();
+    formData.append('file', fileBuffer, { filename: fileName, contentType: fileMime });
+    let dedupRes;
+    try {
+      dedupRes = await axios.post('http://localhost:5002/check-duplicate', formData, {
+        headers: formData.getHeaders(),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to check for duplicate', details: err.message });
+    }
+    const isDuplicate = dedupRes.data.is_duplicate;
+    let updateFields = {};
+    if (isDuplicate) {
+      updateFields = {
+        status: 'rejected',
+        is_verified: null,
+        verified_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    } else {
+      updateFields = {
         status: 'active',
         is_verified: true,
         verified_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    // Update listing status
+    const { data: updatedListing, error: updateError } = await supabase
+      .from('listings')
+      .update(updateFields)
       .eq('ticket_id', listingId)
       .select()
       .single();
