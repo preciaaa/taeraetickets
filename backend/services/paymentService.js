@@ -42,7 +42,7 @@ router.post('/cart', async (req, res) => {
     const ticketIds = cartItems.map(c => c.ticket_id);
     const { data: listings, error: listingsError } = await supabase
       .from('listings')
-      .select('ticket_id, event_name, category, section, row, seat_number, date, price, seller_id')
+      .select('ticket_id, event_name, category, section, row, seat_number, date, price, seller_id, venue')
       .in('ticket_id', ticketIds);
   
     if (listingsError) return res.status(500).json({ error: listingsError.message });
@@ -60,6 +60,7 @@ router.post('/cart', async (req, res) => {
         date: listing?.date || null,
         price: listing?.price || null,
         seller_id: listing?.seller_id || null,
+        venue: listing?.venue || null,
       };
     });
   
@@ -126,7 +127,7 @@ router.post('/cart', async (req, res) => {
       const ticketIds = cartItems.map(c => c.ticket_id);
       const { data: listings } = await supabase
         .from('listings')
-        .select('ticket_id, seller_id, price, date')
+        .select('ticket_id, seller_id, price, date, venue')
         .in('ticket_id', ticketIds);
   
       const items = cartItems.map(cartItem => {
@@ -136,6 +137,7 @@ router.post('/cart', async (req, res) => {
           sellerId: listing.seller_id,
           amount: listing.price,
           eventDate: listing.date,
+          venue: listing.venue,
         };
       });
   

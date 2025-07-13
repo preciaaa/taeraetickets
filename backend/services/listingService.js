@@ -157,7 +157,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       parsedFields = {
         event_name: '',
         venue: '',
-        event_date: '',
+        date: '',
         section: '',
         row: '',
         seat: '',
@@ -243,51 +243,77 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     
     const fingerprint = generateFingerprint(parsedFields);
 
-    // Create listing record in database
-    console.log('Creating listing with fields:', {
-      ticket_id: 'uuidv4()',
-      event_id: eventId,
-      original_owner_id: userId,
-      event_name: parsedFields.event_name || 'Unknown Event',
-      section: parsedFields.section || '',
-      row: parsedFields.row || '',
-      seat_number: parsedFields.seat || null,
-      price: parsedFields.price ? parseFloat(parsedFields.price) : null,
-      category: parsedFields.category || 'General',
-      fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
-      phash // Add phash to log
+    // After parsing fields and before creating the listing, force event_name to use the provided value
+    let finalEventName = req.body.eventName || parsedFields.event_name || 'Unknown Event';
+    parsedFields.event_name = finalEventName;
+
+    // Don't create listing here - just return the processed data
+    res.json({
+      success: true,
+      parsed: parsedFields,
+      fingerprint,
+      imageUrl: publicUrl,
+      isScanned: isScanned,
+      extractedText: extractedText,
+      // Include data needed for listing creation
+      eventId: eventId,
+      eventDate: eventDate,
+      publicUrl: publicUrl,
+      embedding: embedding,
+      phash: phash
     });
 
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process ticket upload',
+      details: error.message 
+    });
+  }
+});
+
+// Create listing without file upload (for manual creation)
+router.post('/listings', async (req, res) => {
+  try {
+    const listingData = req.body;
+    
+    // Validate required fields
+    if (!listingData.event_id || !listingData.original_owner_id || !listingData.event_name) {
+      return res.status(400).json({ error: 'Missing required fields: event_id, original_owner_id, event_name' });
+    }
+
+    // Create listing record in database
     const { data: listing, error: dbError } = await supabase
       .from('listings')
       .insert({
         ticket_id: uuidv4(),
-        event_id: eventId,
-        original_owner_id: userId,
-        event_name: parsedFields.event_name || 'Unknown Event',
-        section: parsedFields.section || '',
-        row: parsedFields.row || '',
-        seat_number: parsedFields.seat || null,
-        price: parsedFields.price ? parseFloat(parsedFields.price) : null,
-        category: parsedFields.category || 'General',
-        order_no: parsedFields.order_no || '',
-        ticket_type: parsedFields.ticket_type || '',
-        queue_no: parsedFields.queue_no || '',
-        door: parsedFields.door || '',
-        entrance: parsedFields.entrance || '',
+        event_id: listingData.event_id,
+        original_owner_id: listingData.original_owner_id,
+        event_name: listingData.event_name,
+        section: listingData.section || '',
+        row: listingData.row || null,
+        seat_number: listingData.seat_number || null,
+        price: listingData.price ? parseFloat(listingData.price) : null,
+        category: listingData.category || 'General',
+        venue: listingData.venue || '',
+        order_no: listingData.order_no || '',
+        ticket_type: listingData.ticket_type || '',
+        queue_no: listingData.queue_no || '',
+        door: listingData.door || '',
+        entrance: listingData.entrance || '',
         new_owner_id: null,
         status: 'active',
-        date: eventDate,
-        fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
-        image_url: publicUrl,
-        parsed_fields: parsedFields,
-        fingerprint: fingerprint,
+        date: listingData.date || null,
+        fixed_seating: !!(listingData.section && listingData.row && listingData.seat_number),
+        image_url: listingData.image_url || null,
+        parsed_fields: listingData.parsed_fields || {},
+        fingerprint: listingData.fingerprint || null,
         is_verified: false,
         verified_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        embedding: embedding,
-        phash // Store phash in DB
+        embedding: listingData.embedding || null,
+        phash: listingData.phash || null
       })
       .select()
       .single();
@@ -298,21 +324,27 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
 
     res.json({
       success: true,
-      listingId: listing.ticket_id,
-      parsed: parsedFields,
-      fingerprint,
-      imageUrl: publicUrl,
-      isScanned: isScanned,
-      extractedText: extractedText
+      listing: listing
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Create listing error:', error);
     res.status(500).json({ 
-      error: 'Failed to process ticket upload',
+      error: 'Failed to create listing',
       details: error.message 
     });
   }
+});
+
+// GET all listings
+router.get('/listings', async (req, res) => {
+	try {
+		const { data, error } = await supabase.from('listings').select('*');
+		if (error) throw error;
+		res.status(200).json(data);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
 });
 
 // Get user's listings
@@ -467,17 +499,6 @@ router.delete('/listings/:listingId', async (req, res) => {
   }
 });
 
-
-// GET all listings
-router.get('/listings', async (req, res) => {
-	try {
-		const { data, error } = await supabase.from('listings').select('*');
-		if (error) throw error;
-		res.status(200).json(data);
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-	}
-});
 
 router.get('/listings/:ticket_id', async (req, res) => {
 	try {

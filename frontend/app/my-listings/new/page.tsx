@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
@@ -11,14 +11,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Upload, FileText, Image, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
+import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from '@/components/ui/command';
 
 interface ExtractedFields {
-  event_name?: string
-  event_date?: string
+  date?: string
   venue?: string
   section?: string
   row?: string
-  seat?: string
+  seat_number?: string
   price?: string
 }
 
@@ -30,16 +30,68 @@ export default function NewListing() {
   const [extractedText, setExtractedText] = useState<string>('')
   const [isScanned, setIsScanned] = useState(false)
   const router = useRouter()
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventSuggestions, setEventSuggestions] = useState<any[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [eventLoading, setEventLoading] = useState(false);
+  const [eventError, setEventError] = useState<string | null>(null);
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  // Add state for processed data
+  const [processedData, setProcessedData] = useState<any>(null);
+
+  // Fetch events as user types
+  useEffect(() => {
+    if (!eventSearch) {
+      setEventSuggestions([]);
+      return;
+    }
+    setEventLoading(true);
+    supabase
+      .from('events')
+      .select('*')
+      .ilike('title', `%${eventSearch}%`)
+      .then(({ data, error }) => {
+        setEventLoading(false);
+        if (error) {
+          setEventError('Failed to fetch events');
+          setEventSuggestions([]);
+        } else {
+          setEventSuggestions(data || []);
+        }
+      });
+  }, [eventSearch]);
+
+  // Create new event if needed
+  const handleCreateEvent = async (title: string) => {
+    setCreatingEvent(true);
+    const { data, error } = await supabase
+      .from('events')
+      .insert([{ title }])
+      .select();
+    setCreatingEvent(false);
+    if (error || !data || !data[0]) {
+      setEventError('Failed to create event');
+      return;
+    }
+    setSelectedEvent(data[0]);
+    setEventSuggestions([]);
+    setEventSearch(data[0].title);
+  };
+
+  // When event is selected, do NOT update extractedFields.event_name anymore
+  useEffect(() => {
+    if (selectedEvent) {
+      // setExtractedFields(prev => ({ ...prev, event_name: selectedEvent.title })); // Removed
+    }
+  }, [selectedEvent]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (file) {
       setFile(file)
       
-      // Create preview
       if (file.type === 'application/pdf') {
-        // For PDFs, show a PDF icon or placeholder
-        setPreview('/pdf-icon.png') // You can add a PDF icon to your public folder
+        setPreview('/pdf-icon.png')
       } else {
         const reader = new FileReader()
         reader.onload = () => {
@@ -57,7 +109,7 @@ export default function NewListing() {
       'application/pdf': ['.pdf']
     },
     maxFiles: 1,
-    maxSize: 100 * 1024 * 1024 // 100MB
+    maxSize: 100 * 1024 * 1024 
   })
 
   const handleUpload = async () => {
@@ -69,7 +121,6 @@ export default function NewListing() {
     setUploading(true)
     
     try {
-      // Get current user from Supabase auth
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       
       if (userError || !user) {
@@ -81,6 +132,9 @@ export default function NewListing() {
       const formData = new FormData()
       formData.append('ticket', file)
       formData.append('userId', user.id)
+      if (selectedEvent && selectedEvent.title) {
+        formData.append('eventName', selectedEvent.title)
+      }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload-ticket`, {
         method: 'POST',
@@ -97,15 +151,79 @@ export default function NewListing() {
       setExtractedFields(result.parsed || {})
       setExtractedText(result.extractedText || '')
       setIsScanned(result.isScanned || false)
+      setProcessedData(result); // Store processed data
       
-      toast.success('Ticket uploaded successfully!')
-      
-      // Optionally redirect to listings page
-      // router.push('/my-listings')
+      toast.success('Ticket processed successfully! Review the details below.')
       
     } catch (error) {
       console.error('Upload error:', error)
       toast.error(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedEvent) {
+      toast.error('Please select an event first')
+      return
+    }
+
+    if (!processedData) {
+      toast.error('Please upload and process a ticket first')
+      return
+    }
+
+    setUploading(true)
+    
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        toast.error('Please log in to create listings')
+        setUploading(false)
+        return
+      }
+
+      // Create the listing with the final data using the backend API
+      const listingData = {
+        event_id: processedData.eventId || selectedEvent.id,
+        original_owner_id: user.id,
+        event_name: selectedEvent.title,
+        section: extractedFields.section || '',
+        row: extractedFields.row || null,
+        seat_number: extractedFields.seat_number || null,
+        price: extractedFields.price ? parseFloat(extractedFields.price) : null,
+        venue: extractedFields.venue || '',
+        date: extractedFields.date || processedData.eventDate,
+        category: 'General',
+        image_url: processedData.publicUrl,
+        parsed_fields: extractedFields,
+        fingerprint: processedData.fingerprint,
+        embedding: processedData.embedding,
+        phash: processedData.phash,
+        // Add other fields as needed
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(listingData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create listing')
+      }
+
+      toast.success('Listing created successfully!')
+      router.push('/my-listings')
+      
+    } catch (error) {
+      console.error('Submit error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to create listing')
     } finally {
       setUploading(false)
     }
@@ -120,189 +238,259 @@ export default function NewListing() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Upload New Ticket</h1>
-        <p className="text-gray-600 mt-2">Upload your ticket and we'll extract the details automatically</p>
-      </div>
+      <div className="mb-10 text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight drop-shadow-sm">Create a New Listing</h1>
+          <p className="text-gray-600 text-lg">Upload your ticket and extract details automatically. Please ensure your event name is correct.</p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Upload Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Ticket</CardTitle>
-            <CardDescription>
-              Drag and drop your ticket image or PDF here
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              <input {...getInputProps()} />
-              {preview ? (
-                <div className="space-y-4">
-                  {file?.type === 'application/pdf' ? (
-                    <div className="flex items-center justify-center">
-                      <FileText className="w-16 h-16 text-red-500" />
+        {/* Step 1: Event Name */}
+        <div className="mb-8">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-block bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-xs font-semibold">Step 1</span>
+            <span className="font-semibold text-gray-800 text-lg">Select or Create Event</span>
+          </div>
+          <div className="relative mt-2">
+            <Input
+              id="event-search"
+              type="text"
+              placeholder="Search or create event..."
+              value={selectedEvent ? selectedEvent.title : eventSearch}
+              onChange={e => {
+                setSelectedEvent(null);
+                setEventSearch(e.target.value);
+                setEventError(null);
+              }}
+              autoComplete="off"
+              className="pr-24 py-3 text-base rounded-xl border-2 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 shadow-sm transition"
+              disabled={creatingEvent}
+            />
+            {eventSearch && !selectedEvent && (
+              <div className="absolute left-0 right-0 z-10 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto mt-1">
+                {eventLoading ? (
+                  <div className="p-3 text-gray-500">Loading...</div>
+                ) : eventSuggestions.length > 0 ? (
+                  eventSuggestions.map(event => (
+                    <div
+                      key={event.id}
+                      className="px-4 py-3 cursor-pointer hover:bg-blue-50 rounded transition"
+                      onMouseDown={() => {
+                        setSelectedEvent(event);
+                        setEventSearch(event.title);
+                        setEventSuggestions([]);
+                      }}
+                    >
+                      <span className="font-semibold text-blue-700">{event.title}</span>
                     </div>
-                  ) : (
-                    <img 
-                      src={preview} 
-                      alt="Preview" 
-                      className="max-w-full max-h-64 mx-auto rounded-lg"
-                    />
-                  )}
-                  <div>
-                    <p className="font-medium">{file?.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {file?.size ? (file.size / 1024 / 1024).toFixed(2) : '0.00'} MB
-                    </p>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-gray-500 flex items-center justify-between">
+                    <span>No results.</span>
+                    <Button
+                      size="sm"
+                      className="ml-2"
+                      onMouseDown={() => handleCreateEvent(eventSearch)}
+                      disabled={creatingEvent}
+                    >
+                      {creatingEvent ? 'Creating...' : `Create "${eventSearch}"`}
+                    </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-lg font-medium">
-                      {isDragActive ? 'Drop the file here' : 'Drag & drop or click to select'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Supports images (JPG, PNG) and PDFs up to 100MB
-                    </p>
+                )}
+              </div>
+            )}
+          </div>
+          {eventError && <div className="text-red-500 text-sm mt-1">{eventError}</div>}
+        </div>
+
+        <div className="h-6 flex items-center justify-center mb-8">
+          <div className="w-1/2 border-t border-gray-200"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Step 2: Upload Ticket */}
+          <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90">
+            <CardHeader className="pb-6">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="inline-block bg-purple-100 text-purple-700 rounded-full px-3 py-1 text-xs font-semibold">Step 2</span>
+                <span className="font-semibold text-gray-800 text-lg">Upload Ticket</span>
+              </div>
+              <CardDescription className="text-gray-500 text-base leading-relaxed">Drag and drop your ticket image or PDF here</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 px-6 pb-6">
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors bg-gradient-to-br from-blue-50 to-purple-50/30 ${
+                  isDragActive ? 'border-blue-400 bg-blue-100' : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                <input {...getInputProps()} />
+                {preview ? (
+                  <div className="space-y-6">
+                    {file?.type === 'application/pdf' ? (
+                      <div className="flex items-center justify-center">
+                        <FileText className="w-16 h-16 text-purple-500" />
+                      </div>
+                    ) : (
+                      <img 
+                        src={preview} 
+                        alt="Preview" 
+                        className="max-w-full max-h-64 mx-auto rounded-xl shadow"
+                      />
+                    )}
+                    <div className="space-y-2">
+                      <p className="font-medium text-gray-800 text-lg truncate px-2">{file?.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {file?.size ? (file.size / 1024 / 1024).toFixed(2) : '0.00'} MB
+                      </p>
+                    </div>
                   </div>
+                ) : (
+                  <div className="space-y-6">
+                    <Upload className="w-16 h-16 text-purple-300 mx-auto" />
+                    <div className="space-y-3">
+                      <p className="text-xl font-medium text-gray-700">
+                        {isDragActive ? 'Drop the file here' : 'Drag & drop or click to select'}
+                      </p>
+                      <p className="text-sm text-gray-400 leading-relaxed">
+                        Supports images (JPG, PNG) and PDFs up to 100MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                onClick={handleUpload}
+                disabled={!file || uploading || !selectedEvent}
+                className="w-full py-3 text-base font-medium"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5 mr-3" />
+                    Upload & Extract Details
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Step 3: Review Details */}
+          <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90">
+            <CardHeader className="pb-6">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="inline-block bg-green-100 text-green-700 rounded-full px-3 py-1 text-xs font-semibold">Step 3</span>
+                <span className="font-semibold text-gray-800 text-lg">Review & Edit Details</span>
+              </div>
+              <CardDescription className="text-gray-500 text-base leading-relaxed">Review and edit the extracted information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 px-6 pb-6">
+              {isScanned && (
+                <div className="flex items-start p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-x-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm text-yellow-800 leading-relaxed">
+                    This appears to be a scanned document. Please verify the extracted details.
+                  </span>
                 </div>
               )}
-            </div>
 
-            <Button 
-              onClick={handleUpload} 
-              disabled={!file || uploading}
-              className="w-full"
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="event_date" className="text-sm font-medium">Event Date</Label>
+                  <Input
+                    id="event_date"
+                    value={extractedFields.date || ''}
+                    onChange={(e) => updateField('date', e.target.value)}
+                    placeholder="Event date"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="venue" className="text-sm font-medium">Venue</Label>
+                  <Input
+                    id="venue"
+                    value={extractedFields.venue || ''}
+                    onChange={(e) => updateField('venue', e.target.value)}
+                    placeholder="Venue"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="section" className="text-sm font-medium">Section</Label>
+                  <Input
+                    id="section"
+                    value={extractedFields.section || ''}
+                    onChange={(e) => updateField('section', e.target.value)}
+                    placeholder="Section"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="row" className="text-sm font-medium">Row</Label>
+                  <Input
+                    id="row"
+                    value={extractedFields.row || ''}
+                    onChange={(e) => updateField('row', e.target.value)}
+                    placeholder="Row"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="seat" className="text-sm font-medium">Seat</Label>
+                  <Input
+                    id="seat"
+                    value={extractedFields.seat_number || ''}
+                    onChange={(e) => updateField('seat_number', e.target.value)}
+                    placeholder="Seat"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price" className="text-sm font-medium">Price</Label>
+                  <Input
+                    id="price"
+                    value={extractedFields.price || ''}
+                    onChange={(e) => updateField('price', e.target.value)}
+                    placeholder="Price"
+                    className="rounded-lg py-2.5"
+                  />
+                </div>
+              </div>
+
+              {/* Removed the raw extracted text section */}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Submit Button */}
+        {Object.keys(extractedFields).length > 0 && (
+          <div className="mt-8 text-center">
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedEvent || uploading}
+              size="lg"
+              className="px-8 py-3 text-lg font-semibold"
             >
               {uploading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
+                  <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                  Creating Listing...
                 </>
               ) : (
                 <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload & Extract Details
+                  <CheckCircle className="w-5 h-5 mr-3" />
+                  Create Listing
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Extracted Details Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Extracted Details</CardTitle>
-            <CardDescription>
-              Review and edit the extracted information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isScanned && (
-              <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-                <span className="text-sm text-yellow-800">
-                  This appears to be a scanned document. Please verify the extracted details.
-                </span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="event_name">Event Name</Label>
-                <Input
-                  id="event_name"
-                  value={extractedFields.event_name || ''}
-                  onChange={(e) => updateField('event_name', e.target.value)}
-                  placeholder="Event name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="event_date">Event Date</Label>
-                <Input
-                  id="event_date"
-                  value={extractedFields.event_date || ''}
-                  onChange={(e) => updateField('event_date', e.target.value)}
-                  placeholder="Event date"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="venue">Venue</Label>
-                <Input
-                  id="venue"
-                  value={extractedFields.venue || ''}
-                  onChange={(e) => updateField('venue', e.target.value)}
-                  placeholder="Venue"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="section">Section</Label>
-                <Input
-                  id="section"
-                  value={extractedFields.section || ''}
-                  onChange={(e) => updateField('section', e.target.value)}
-                  placeholder="Section"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="row">Row</Label>
-                <Input
-                  id="row"
-                  value={extractedFields.row || ''}
-                  onChange={(e) => updateField('row', e.target.value)}
-                  placeholder="Row"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="seat">Seat</Label>
-                <Input
-                  id="seat"
-                  value={extractedFields.seat || ''}
-                  onChange={(e) => updateField('seat', e.target.value)}
-                  placeholder="Seat"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="price">Price</Label>
-                <Input
-                  id="price"
-                  value={extractedFields.price || ''}
-                  onChange={(e) => updateField('price', e.target.value)}
-                  placeholder="Price"
-                />
-              </div>
-            </div>
-
-            {extractedText && (
-              <div>
-                <Label htmlFor="extracted_text">Raw Extracted Text</Label>
-                <Textarea
-                  id="extracted_text"
-                  value={extractedText}
-                  readOnly
-                  rows={4}
-                  className="text-sm"
-                  placeholder="Extracted text will appear here..."
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <p className="text-sm text-gray-500 mt-2">
+              Review all details above before creating your listing
+            </p>
+          </div>
+        )}
       </div>
-    </div>
   )
 } 
