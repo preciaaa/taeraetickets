@@ -277,6 +277,10 @@ router.post('/listings', async (req, res) => {
   try {
     const listingData = req.body;
     
+    console.log('Received listing data:', listingData);
+    console.log('Price from request:', listingData.price);
+    console.log('Original price from parsed_fields:', listingData.parsed_fields?.price);
+    
     // Validate required fields
     if (!listingData.event_id || !listingData.original_owner_id || !listingData.event_name) {
       return res.status(400).json({ error: 'Missing required fields: event_id, original_owner_id, event_name' });
@@ -321,6 +325,9 @@ router.post('/listings', async (req, res) => {
     if (dbError) {
       throw new Error(`Database error: ${dbError.message}`);
     }
+
+    console.log('Listing created successfully:', listing);
+    console.log('Stored price in database:', listing.price);
 
     res.json({
       success: true,

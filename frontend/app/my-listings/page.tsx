@@ -194,8 +194,8 @@ export default function MyListings() {
   }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 overflow-x-hidden">
-        <div className="relative z-10 max-w-5xl mx-auto px-4">
+      <div className="px-6 py-10">
+        <div className="relative z-10 max-w-5xl mx-auto">
           <div className="mb-10">
             <div className="rounded-2xl shadow-md bg-white/80 border border-gray-200 px-8 py-6 flex flex-col items-center md:items-start card-glass">
               <h1 className="text-4xl font-extrabold text-gray-900 mb-2 text-center md:text-left">My Listings</h1>
@@ -311,7 +311,7 @@ export default function MyListings() {
                             <span className="font-medium">Seat:</span> {listing.parsed_fields?.seat || listing.seat_number || '-'}
                           </div>
                           <div>
-                            <span className="font-medium">Price:</span> ${listing.parsed_fields?.price || listing.price || '-'}
+                            <span className="font-medium">Price:</span> ${listing.price || listing.parsed_fields?.price || '-'}
                           </div>
                           <div className="col-span-2 text-gray-400 text-xs mt-2">
                             Uploaded: {formatDate(listing.created_at)}
