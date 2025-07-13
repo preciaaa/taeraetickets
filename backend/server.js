@@ -54,6 +54,8 @@ app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
+app.use('/', eventService);
+app.use('/', listingService);
 
 // Start the server
 const port = process.env.PORT || 5000;
