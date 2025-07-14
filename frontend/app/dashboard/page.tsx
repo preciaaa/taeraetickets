@@ -1,106 +1,96 @@
-// pages/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { Button } from "@/components/ui/button";
 
-export default function Dashboard() {
-  const [payments, setPayments] = useState<any[]>([]);
-  const userId = typeof window !== 'undefined' ? localStorage.getItem("user_id") : null;
+interface Payment {
+  payment_id: string;
+  total_amount: number;
+  status: string;
+  // add other fields you expect to receive
+}
+
+export default function DashboardPage() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const userId =
+    typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
 
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`http://localhost:5000/payments/${userId}`)
-      .then((res) => res.json())
-      .then(setPayments);
+    axios
+      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/${userId}`)
+      .then((res) => setPayments(res.data))
+      .catch((err) => console.error("Failed to load payments:", err));
   }, [userId]);
 
-  async function handleAutoRelease() {
-    const res = await fetch("http://localhost:5000/auto-release", {
-      method: "POST",
-    });
-    const result = await res.json();
-    alert(result.message || "Auto-release complete");
-  }
+  const handleConfirm = async (payment_id: string) => {
+    if (!payment_id || !userId) {
+      alert("Missing payment ID or user ID");
+      return;
+    }
 
-  async function confirmPurchase(paymentId: string) {
-    await fetch("http://localhost:5000/confirm-purchase", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentId, buyerId: userId }),
-    });
-    alert("Purchase confirmed");
-  }
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
+        { payment_id, buyer_id: userId }
+      );
+      alert("Purchase confirmed");
+      window.location.reload();
+    } catch (err) {
+      console.error("Confirm API error:", err);
+      alert("Failed to confirm purchase");
+    }
+  };
 
-  async function reportSeller(paymentId: string) {
-    const reason = prompt("Why are you reporting this seller?");
+  const handleReport = async (payment_id: string) => {
+    if (!userId) {
+      alert("User not logged in");
+      return;
+    }
+  
+    const reason = prompt("Enter report reason:");
     if (!reason) return;
-
-    await fetch("http://localhost:5000/report-seller", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentId, buyerId: userId, reason }),
-    });
-    alert("Seller reported");
-  }
-
+  
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
+        { payment_id, original_owner_id: userId, reason }
+      );
+      alert("Reported successfully");
+      window.location.reload();
+    } catch (error) {
+      console.error("Report API error:", error);
+      alert("Failed to report seller");
+    }
+  };
   return (
-    <div className="p-8">
-      <h1 className="text-xl font-bold mb-4">My Payments</h1>
-      <button
-        className="mb-4 bg-purple-600 text-white px-4 py-2 rounded"
-        onClick={handleAutoRelease}
-      >
-        Run Auto-Release
-      </button>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-300">
-          <thead>
-            <tr className="bg-gray-200">
-              <th className="px-4 py-2">Payment ID</th>
-              <th className="px-4 py-2">Total</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Created At</th>
-              <th className="px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((p) => (
-              <tr key={p.id} className="border-t">
-                <td className="px-4 py-2">{p.id}</td>
-                <td className="px-4 py-2">${(p.total_amount / 100).toFixed(2)}</td>
-                <td className="px-4 py-2">{p.status}</td>
-                <td className="px-4 py-2">{new Date(p.created_at).toLocaleString()}</td>
-                <td className="px-4 py-2 space-x-2">
-                  {p.status === 'paid' && (
-                    <>
-                      <button
-                        onClick={() => confirmPurchase(p.id)}
-                        className="bg-green-600 text-white px-2 py-1 rounded"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => reportSeller(p.id)}
-                        className="bg-red-600 text-white px-2 py-1 rounded"
-                      >
-                        Report
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {!payments.length && (
-              <tr>
-                <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
-                  No payment records found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+    <div className="max-w-4xl mx-auto mt-10">
+      <h1 className="text-3xl font-bold mb-6">Your Payments</h1>
+      {payments.length === 0 && <p>No payments found.</p>}
+      {payments.map((p) => (
+        <div key={p.payment_id} className="border p-4 rounded-lg shadow mb-4">
+          <p className="font-semibold">Amount: ${p.total_amount}</p>
+          <p>Status: {p.status}</p>
+          {p.status === "initiated" && (
+            <div className="space-x-2 mt-2">
+              <Button
+                onClick={() => handleConfirm(p.payment_id)}
+                className="bg-green-500 hover:bg-green-600"
+              >
+                Confirm Purchase
+              </Button>
+              <Button
+                onClick={() => handleReport(p.payment_id)}
+                variant="destructive"
+              >
+                Report Seller
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

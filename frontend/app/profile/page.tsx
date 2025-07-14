@@ -28,6 +28,8 @@ export default function ProfilePage() {
     const [saving, setSaving] = useState(false);
     const [verified, setVerified] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
+    const [stripeConnected, setStripeConnected] = useState<boolean | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         const initialise = async () => {
@@ -37,32 +39,51 @@ export default function ProfilePage() {
                 return;
             }
             const user = session.user;
+            setUserId(user.id);
             setUsername(user.user_metadata?.username || user.email?.split("@")[0] || "User");
             if (user.user_metadata?.profile_pic) {
                 setSelectedPic(user.user_metadata.profile_pic);
             }
-
             try {
                 const res = await fetch(`http://localhost:5000/users/${user.id}`);
                 const data = await res.json();
                 setVerified(data.verified);
+                setStripeConnected(!!data.stripe_account_id);
             } catch (err) {
-                console.error("Failed to fetch verification status:", err);
+                console.error("Failed to fetch user data:", err);
                 setVerified(false);
+                setStripeConnected(false);
             }
             setLoading(false);
         };
-
         initialise();
     }, [router]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+        localStorage.removeItem('user_id');
         router.push("/auth/login");
     };
 
     const handleVerification = () => {
         router.push("/verification");
+    };
+
+    const handleCheckStripe = async () => {
+        if (!userId) return;
+        try {
+            const res = await fetch(`http://localhost:5000/users/${userId}`);
+            const data = await res.json();
+            if (!data.stripe_account_id) {
+                router.push("/onboard");
+            } else {
+                alert("Stripe account already connected.");
+                setStripeConnected(true);
+            }
+        } catch (err) {
+            console.error("Failed to check Stripe account:", err);
+            alert("An error occurred while checking Stripe account.");
+        }
     };
 
     if (loading) {
@@ -153,7 +174,7 @@ export default function ProfilePage() {
                 </div>
             )}
 
-            <div className="text-center">
+            <div className="text-center space-y-2">
                 <p className="text-gray-700 mb-2">
                     Verification Status:{" "}
                     <span className={verified ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
@@ -167,6 +188,17 @@ export default function ProfilePage() {
                 >
                     {verified ? "Already Verified" : "Verify Me"}
                 </Button>
+                <p className="text-gray-700 mt-2">
+                    Stripe Account:{" "}
+                    <span className={stripeConnected ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {stripeConnected ? "Created" : "Not Created"}
+                    </span>
+                </p>
+                {!stripeConnected && (
+                    <Button onClick={handleCheckStripe} className="w-full mt-2">
+                        Connect Stripe Account
+                    </Button>
+                )}
             </div>
 
             <div>
@@ -184,5 +216,5 @@ export default function ProfilePage() {
                 </Button>
             </div>
         </div>
-        )
+    );
 }
