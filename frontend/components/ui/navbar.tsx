@@ -29,8 +29,9 @@ export default function Navbar() {
     }
     return (
         <nav className="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-50 shadow-md">
-            <Link href="/" className="text-2xl font-bold">
-                🎟taeraetickets
+            <Link href="/" className="flex items-center text-2xl font-bold">
+                <img src="../../favicon.ico" alt="logo" className="w-7 h-8 mr-2" />
+                taeraetickets
             </Link>
 
             <NavigationMenu>
