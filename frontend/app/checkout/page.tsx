@@ -1,3 +1,4 @@
+// npm install stripe
 'use client';
 
 import { useEffect, useState, useRef } from 'react';

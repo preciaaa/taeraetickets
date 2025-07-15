@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from supabase import create_client
 import asyncio
 from playwright.async_api import async_playwright
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 # Load environment variables
 load_dotenv(dotenv_path=".env.local")
@@ -49,7 +50,20 @@ async def scrape_ticketmaster(request: SearchRequest):
         try:
             venue = await page.locator("#synopsisEventVenue").text_content()
             dates = await page.locator("#synopsisEventDate").text_content()
-
+            content_html= await page.locator("#activityContent").inner_html()
+            soup = BeautifulSoup(content_html, "html.parser")
+            collected_text = []
+            for elem in soup.contents:
+                if isinstance(elem, Tag) and elem.name == "br":
+                    break  # Stop at the first <br>
+                if isinstance(elem, NavigableString):
+                    collected_text.append(elem.strip())
+                elif isinstance(elem, Tag):
+                    collected_text.append(elem.get_text(strip=True))
+                    
+            clean_text = " ".join(filter(None, collected_text))
+            print(clean_text)
+            
             img_src = ""
             imgs = await page.locator("img").all()
             for img in imgs:
@@ -65,7 +79,8 @@ async def scrape_ticketmaster(request: SearchRequest):
                 "venue": venue,
                 "date": dates,
                 "image": img_src,
-                "event_url": activity_link
+                "event_url": activity_link,
+                "description": clean_text
             }
 
         except Exception as e:
