@@ -1,5 +1,6 @@
+# pip install mistralai
 import os
-from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from uuid import uuid4
@@ -20,17 +21,7 @@ if not SUPABASE_URL or not SUPABASE_KEY or not MISTRAL_API_KEY:
     raise RuntimeError("Missing one or more required environment variables.")
 
 # Initialize app and Mistral client
-app = FastAPI()
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+router = APIRouter()
 client = Mistral(api_key=MISTRAL_API_KEY)
 
 # Use the name of your actual public bucket
@@ -75,7 +66,7 @@ def ensure_bucket_exists():
 # Ensure bucket exists on startup
 ensure_bucket_exists()
 
-@app.post("/extract-text/")
+@router.post("/extract-text/")
 async def extract_text(file: UploadFile = File(...)):
     try:
         # 1. Validate PDF
@@ -206,7 +197,7 @@ async def extract_text(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
 
-@app.get('/health')
+@router.get('/health')
 async def health_check():
     return {
         'status': 'healthy',

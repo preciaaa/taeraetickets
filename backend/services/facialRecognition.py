@@ -6,7 +6,6 @@ load_dotenv(dotenv_path=".env.local")
 
 import os
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
 from typing import List
 import math
 import httpx
