@@ -70,7 +70,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
       const result = await response.json()
   
       if (result.num_results === 1) {
-        setScrapedEvent({ ...result, title })
+        setScrapedEvent({ ...result })
         setShowScrapeModal(true)
       } else if (result.num_results > 1) {
         alert(`Found ${result.num_results} events. Please narrow your search.`)
@@ -129,6 +129,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
               )}
 
               <div className="space-y-2">
+                <p><strong>Title:</strong> {scrapedEvent?.title}</p>
                 <p><strong>Venue:</strong> {scrapedEvent?.venue}</p>
                 <p><strong>Date:</strong> {scrapedEvent?.date}</p>
               </div>

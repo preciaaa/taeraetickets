@@ -48,6 +48,7 @@ async def scrape_ticketmaster(request: SearchRequest):
         await page.wait_for_timeout(3000)
 
         try:
+            title = await page.locator("#synopsisEventTitle").text_content()
             venue = await page.locator("#synopsisEventVenue").text_content()
             dates = await page.locator("#synopsisEventDate").text_content()
             content_html= await page.locator("#activityContent").inner_html()
@@ -76,6 +77,7 @@ async def scrape_ticketmaster(request: SearchRequest):
 
             return {
                 "num_results": 1,
+                "title": title,
                 "venue": venue,
                 "date": dates,
                 "image": img_src,
