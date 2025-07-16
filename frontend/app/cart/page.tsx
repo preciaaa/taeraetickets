@@ -5,6 +5,7 @@ import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 export default function CartPage() {
   const [cart, setCart] = useState<any[]>([])
@@ -16,7 +17,7 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!userId) return
-    axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${userId}`)
+    axios.get(apiRoutes.cart(userId))
       .then(async res => {
         setCart(res.data)
         setLoading(false)

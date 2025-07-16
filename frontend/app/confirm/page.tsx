@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiRoutes } from '@/lib/apiRoutes';
 
 export default function ConfirmPage() {
   const [paymentId, setPaymentId] = useState<string | null>(null);
@@ -18,7 +19,7 @@ export default function ConfirmPage() {
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`, {
+      const res = await fetch(apiRoutes.confirmPurchase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payment_id: paymentId, buyer_id: buyerId }),

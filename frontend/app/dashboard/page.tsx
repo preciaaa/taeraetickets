@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
+import { apiRoutes } from '@/lib/apiRoutes';
 
 interface Payment {
   payment_id: string;
@@ -20,7 +21,7 @@ export default function DashboardPage() {
     if (!userId) return;
 
     axios
-      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/${userId}`)
+      .get(apiRoutes.payments(userId))
       .then((res) => setPayments(res.data))
       .catch((err) => console.error("Failed to load payments:", err));
   }, [userId]);
@@ -33,7 +34,7 @@ export default function DashboardPage() {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
+        apiRoutes.confirmPurchase,
         { payment_id, buyer_id: userId }
       );
       alert("Purchase confirmed");
@@ -55,7 +56,7 @@ export default function DashboardPage() {
   
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
+        apiRoutes.reportSeller,
         { payment_id, original_owner_id: userId, reason }
       );
       alert("Reported successfully");

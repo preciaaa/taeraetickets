@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -30,7 +31,7 @@ export default function OnboardingPage() {
 
     try {
       // Adjust this URL if your backend runs elsewhere
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/create-stripe-account`, {
+      const response = await fetch(apiRoutes.createStripeAccount, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),

@@ -55,7 +55,7 @@ router.get('/listings/getEventListings/:event_id', async (req, res) => {
 		const { data, error } = await supabase
 			.from('listings')
 			.select('*')
-			.eq('event_id', req.params.event_id); // <-- filter by event ID
+			.eq('event_id', req.params.event_id);
 		if (error) throw error;
 		res.status(200).json(data);
 	} catch (err) {
@@ -96,7 +96,7 @@ router.get('/listings/getListingByTicket/:ticket_id', async (req, res) => {
             .from('listings')
             .select('*')
             .eq('id', ticket_id)
-            .single(); // Ensures only one record is returned
+            .single(); 
 
         if (error) throw error;
 
@@ -118,7 +118,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
     let publicUrl = null;
     let uploadBuffer = req.file.buffer;
     let fileName;
-    let phash = null; // <-- define phash here
+    let phash = null; 
 
     if (!isPdf) {
       const dedupFormData = new FormData();

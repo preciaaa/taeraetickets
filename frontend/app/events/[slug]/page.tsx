@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useSearchParams } from 'next/navigation'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -36,8 +37,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import Link from 'next/link'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
 
 interface Event {
   id: number
@@ -73,7 +72,7 @@ const FormSchema = z.object({
 
 async function fetchUserVerification(userId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/users/${userId}/verification`)
+    const res = await fetch(apiRoutes.userVerification(userId))
     if (!res.ok) throw new Error('Failed to verify user')
     const data = await res.json()
     return data.verified === true
@@ -102,7 +101,7 @@ export default function EventPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     const fetchEvent = async (id: number) => {
       try {
-        const res = await fetch(`${API_BASE_URL}/events/${id}`)
+        const res = await fetch(apiRoutes.event(id))
         console.log(res)
         if (!res.ok) throw new Error('Failed to fetch event')
         const data = await res.json()
@@ -139,7 +138,7 @@ export default function EventPage({ params }: { params: { slug: string } }) {
   const fetchListings = async (eventId: number) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${API_BASE_URL}/listings/getEventListings/${eventId}`, {
+      const response = await fetch(apiRoutes.getEventListings(eventId), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

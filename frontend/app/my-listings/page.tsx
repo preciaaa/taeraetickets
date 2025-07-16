@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Eye, Trash2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+import { apiRoutes } from '@/lib/apiRoutes';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -88,7 +89,7 @@ export default function MyListings() {
     try {
       setLoading(true);
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings/getUserListings/${userId}`);
+      const response = await fetch(apiRoutes.getUserListings(userId));
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -121,7 +122,7 @@ export default function MyListings() {
 
   const deleteListing = async (listingId: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings/${listingId}`, {
+      const response = await fetch(apiRoutes.listingById(listingId), {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import ThemeSelector from "@/components/ThemeSelector";
+import { apiRoutes } from '@/lib/apiRoutes';
 
 const PROFILE_IMAGES = [
     "/profile-pics/zwoongnini.png",
@@ -46,7 +47,7 @@ export default function ProfilePage() {
             setSelectedPic(user.user_metadata?.profile_pic || PROFILE_IMAGES[0]);
 
             try {
-                const res = await fetch(`http://localhost:5000/users/${user.id}`);
+                const res = await fetch(apiRoutes.user(user.id));
                 const data = await res.json();
                 setVerified(data.verified);
                 setStripeConnected(!!data.stripe_account_id);
@@ -74,7 +75,7 @@ export default function ProfilePage() {
     const handleCheckStripe = async () => {
         if (!userId) return;
         try {
-            const res = await fetch(`http://localhost:5000/users/${userId}`);
+            const res = await fetch(apiRoutes.user(userId));
             const data = await res.json();
             if (!data.stripe_account_id) {
                 router.push("/onboard");

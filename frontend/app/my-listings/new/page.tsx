@@ -13,6 +13,7 @@ import { Upload, FileText, Image, Loader2, CheckCircle, AlertCircle } from 'luci
 import { supabase } from '@/lib/supabaseClient'
 import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from '@/components/ui/command'
 import { EventSelector } from '@/components/ui/event-selector'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 interface ExtractedFields {
   date?: string
@@ -196,7 +197,7 @@ export default function NewListing() {
         formData.append('eventName', selectedEvent.title)
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload-ticket`, {
+      const response = await fetch(apiRoutes.uploadTicket, {
         method: 'POST',
         body: formData,
       })
@@ -282,7 +283,7 @@ export default function NewListing() {
       console.log('Selected price:', selectedPrice);
       console.log('Original price from OCR:', originalPrice);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/listings`, {
+      const response = await fetch(apiRoutes.listings, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

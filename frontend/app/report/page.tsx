@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { apiRoutes } from '@/lib/apiRoutes';
 
 export default function ReportPage() {
   const [reason, setReason] = useState("");
 
   async function report() {
-    await fetch("http://localhost:5000/report-seller", {
+    await fetch(apiRoutes.reportSeller, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paymentId: "payment_id_here", buyerId: "user123", reason }),

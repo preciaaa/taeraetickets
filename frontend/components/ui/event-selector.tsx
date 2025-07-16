@@ -111,7 +111,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
               setEventSearch(e.target.value)
               setEventError(null)
             }}
-            autoComplete="off"
+            autoComplete="on"
             className="pr-24 py-3 text-base rounded-xl border-2 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 shadow-sm transition"
             disabled={creatingEvent}
           />
@@ -174,32 +174,41 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
             <div className="absolute left-0 right-0 z-10 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto mt-1">
               {eventLoading ? (
                 <div className="p-3 text-gray-500">Loading...</div>
-              ) : eventSuggestions.length > 0 ? (
-                eventSuggestions.map(event => (
-                  <div
-                    key={event.id}
-                    className="px-4 py-3 cursor-pointer hover:bg-blue-50 rounded transition"
-                    onMouseDown={() => {
-                      onEventSelect(event)
-                      setEventSearch(event.title)
-                      setEventSuggestions([])
-                    }}
-                  >
-                    <span className="font-semibold text-blue-700">{event.title}</span>
-                  </div>
-                ))
               ) : (
-                <div className="px-4 py-3 text-gray-500 flex items-center justify-between">
-                  <span>No results.</span>
-                  <Button
-                    size="sm"
-                    className="ml-2"
-                    onMouseDown={() => handleCreateEvent(eventSearch)}
-                    disabled={creatingEvent}
-                  >
-                    {creatingEvent ? 'Creating...' : `Create "${eventSearch}"`}
-                  </Button>
-                </div>
+                <>
+                  {eventSuggestions.length > 0 && eventSuggestions.map(event => (
+                    <div
+                      key={event.id}
+                      className="px-4 py-3 cursor-pointer hover:bg-blue-50 rounded transition"
+                      onMouseDown={() => {
+                        onEventSelect(event)
+                        setEventSearch(event.title)
+                        setEventSuggestions([])
+                      }}
+                    >
+                      <span className="font-semibold text-blue-700">{event.title}</span>
+                    </div>
+                  ))}
+                  {(
+                    !eventSuggestions.some(e => e.title.toLowerCase() === eventSearch.trim().toLowerCase()) &&
+                    eventSearch.trim().length > 0
+                  ) && (
+                    <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100 bg-blue-50/30">
+                      <span className="text-gray-700"></span>
+                      <Button
+                        size="sm"
+                        className="ml-2"
+                        onMouseDown={() => handleCreateEvent(eventSearch)}
+                        disabled={creatingEvent}
+                      >
+                        {creatingEvent ? 'Creating...' : `Create New Event: "${eventSearch}"`}
+                      </Button>
+                    </div>
+                  )}
+                  {eventSuggestions.length === 0 && (
+                    <div className="px-4 py-3 text-gray-500">No results.</div>
+                  )}
+                </>
               )}
             </div>
           )}

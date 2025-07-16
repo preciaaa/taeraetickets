@@ -12,6 +12,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { apiRoutes } from '@/lib/apiRoutes';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -72,12 +73,12 @@ export default function CheckoutPage() {
     const loadCheckout = async () => {
       try {
         // Load cart
-        const { data: cartRes } = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${userId}`);
+        const { data: cartRes } = await axios.get(apiRoutes.cart(userId));
         setCart(cartRes);
 
         // Start checkout
         const { data: checkoutRes } = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/checkout`,
+          apiRoutes.checkout,
           { userId }
         );
 
