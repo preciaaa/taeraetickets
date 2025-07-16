@@ -143,7 +143,7 @@ router.post('/create-stripe-account', async (req, res) => {
 });
 
 
-// backend/routes/payment.js or similar
+// checkout route
 router.post('/checkout', async (req, res) => {
   try {
     const { userId } = req.body;
@@ -248,7 +248,7 @@ router.post('/checkout', async (req, res) => {
     );
     const insertResults = await Promise.all(insertPromises);
 
-    // --- NEW: Update listings status to 'sold' and set new_owner_id to buyer ---
+    // --- Update listings status to 'sold' and set new_owner_id to buyer ---
     const { error: updateListingError } = await supabase
       .from('listings')
       .update({
@@ -276,9 +276,19 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
+// get payment-items
+router.get('/payment-items/:user_id', async (req, res) => {
+  const { user_id } = req.params;
 
+  const { data, error } = await supabase
+    .from('payment_items')
+    .select('*')
+    .eq('new_owner_id', user_id);
 
+  if (error) return res.status(500).json({ error: 'Failed to fetch payment items' });
 
+  res.json(data);
+});
 
 
 // === POST-PURCHASE ACTIONS ===
@@ -338,16 +348,24 @@ router.post('/confirm-purchase', async (req, res) => {
       })
       .eq('payment_id', payment_id);
 
+    // Update related listings to "confirmed"
+    const ticketIds = paymentItems.map(item => item.ticket_id);
+    const { error: listingUpdateError } = await supabase
+      .from('listings')
+      .update({ status: 'confirmed' })
+      .in('ticket_id', ticketIds);
+
+    if (listingUpdateError) {
+      console.error('Failed to update listings to confirmed:', listingUpdateError);
+      return res.status(500).json({ error: 'Failed to update listing status' });
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('Confirm purchase error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
 
 
 router.post('/auto-release', async (req, res) => {

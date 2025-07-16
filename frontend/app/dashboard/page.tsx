@@ -3,16 +3,29 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Payment {
   payment_id: string;
   total_amount: number;
   status: string;
-  // add other fields you expect to receive
 }
 
 export default function DashboardPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportPaymentId, setReportPaymentId] = useState<string | null>(null);
+
   const userId =
     typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
 
@@ -27,7 +40,7 @@ export default function DashboardPage() {
 
   const handleConfirm = async (payment_id: string) => {
     if (!payment_id || !userId) {
-      alert("Missing payment ID or user ID");
+      alert('Missing payment ID or user ID');
       return;
     }
 
@@ -36,35 +49,44 @@ export default function DashboardPage() {
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
         { payment_id, buyer_id: userId }
       );
-      alert("Purchase confirmed");
+      alert('Purchase confirmed');
       window.location.reload();
     } catch (err) {
       console.error("Confirm API error:", err);
-      alert("Failed to confirm purchase");
+      alert('Failed to confirm purchase');
     }
   };
 
-  const handleReport = async (payment_id: string) => {
-    if (!userId) {
-      alert("User not logged in");
+  const handleOpenReport = (payment_id: string) => {
+    setReportPaymentId(payment_id);
+    setReportReason("");
+    setReportDialogOpen(true);
+  };
+
+  const submitReport = async () => {
+    if (!userId || !reportPaymentId || !reportReason.trim()) {
+      alert('Please enter a report reason');
       return;
     }
-  
-    const reason = prompt("Enter report reason:");
-    if (!reason) return;
-  
+
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
-        { payment_id, original_owner_id: userId, reason }
+        {
+          payment_id: reportPaymentId,
+          original_owner_id: userId,
+          reason: reportReason,
+        }
       );
-      alert("Reported successfully");
-      window.location.reload();
+      setReportDialogOpen(false);
+      alert('Reported successfully');
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
       console.error("Report API error:", error);
-      alert("Failed to report seller");
+      alert('Failed to report seller');
     }
   };
+
   return (
     <div className="max-w-4xl mx-auto mt-10">
       <h1 className="text-3xl font-bold mb-6">Your Payments</h1>
@@ -82,7 +104,7 @@ export default function DashboardPage() {
                 Confirm Purchase
               </Button>
               <Button
-                onClick={() => handleReport(p.payment_id)}
+                onClick={() => handleOpenReport(p.payment_id)}
                 variant="destructive"
               >
                 Report Seller
@@ -91,6 +113,32 @@ export default function DashboardPage() {
           )}
         </div>
       ))}
+
+
+      {/* Report Dialog */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Seller</DialogTitle>
+            <DialogDescription>
+              Explain why you are reporting this seller.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            className="mt-4"
+            placeholder="Enter reason..."
+            value={reportReason}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setReportReason(e.target.value)
+            }
+          />
+          <DialogFooter className="mt-4">
+            <Button onClick={submitReport} disabled={!reportReason.trim()}>
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
