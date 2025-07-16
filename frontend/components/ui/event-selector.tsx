@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 interface Event {
   id: string
@@ -61,7 +62,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
   const handleCreateEvent = async (title: string) => {
     setCreatingEvent(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/search-event`, {
+      const response = await fetch(apiRoutes.searchEvent, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ search_term: title }),

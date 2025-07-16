@@ -51,11 +51,12 @@ export default function SignUpPage() {
       return;
     }
 
+    const FRONTEND_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://localhost:3000';
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: "http://localhost:3000/events", // change to your actual redirect URL
+        emailRedirectTo: `${FRONTEND_BASE_URL}/events`, // change to your actual redirect URL
       },
     });
 

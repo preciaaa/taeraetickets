@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@supabase/supabase-js'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 type FaceVerificationProps = {
   userId?: string
@@ -16,7 +17,7 @@ export default function FaceVerification({
   userId,
   onSuccess,
   onFailure,
-  compareEndpoint = 'http://localhost:5002/compare-faces',
+  compareEndpoint = apiRoutes.compareFacesCustom(),
 }: FaceVerificationProps) {
   const webcamRef = useRef<Webcam>(null)
   const [match, setMatch] = useState<boolean | null>(null)
