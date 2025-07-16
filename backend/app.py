@@ -4,10 +4,11 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from services import facialRecognition
-from services import webScrapingService
-from services import ocrService
-from services import imageDedupService
+from .services import facialRecognition
+from .services import webScrapingService
+from .services import ocrService
+from .services import imageDedupService
+
 
 app = FastAPI()
 

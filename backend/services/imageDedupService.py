@@ -1,47 +1,53 @@
 # pip install imagehash PyMuPDF
-from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
+import os
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
-# from pdf2image import convert_from_bytes
 from PIL import Image
 import imagehash
-from dotenv import load_dotenv
-import os
 from supabase import create_client, Client
-import fitz
+import fitz  # PyMuPDF
 
-load_dotenv(dotenv_path=".env.local")
+# Load environment variables
+load_dotenv(dotenv_path="backend/.env.local")
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Supabase environment variables not loaded. Check .env.local path.")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Define APIRouter for deduplication endpoints
 router = APIRouter()
-
-POPPLER_PATH = r"C:\Program Files\poppler-24.08.0\Library\bin"  
 
 @router.post('/check-duplicate')
 async def check_duplicate(file: UploadFile = File(...)):
-    # Check file type
-    is_pdf = file.filename.endswith(".pdf") or file.content_type == "application/pdf"
-    
+    filename = getattr(file, 'filename', None)
+    content_type = getattr(file, 'content_type', None)
+    is_pdf = (filename and filename.endswith('.pdf')) or (content_type == 'application/pdf')
     try:
         if is_pdf:
             contents = await file.read()
-            doc = fitz.open(stream=contents, filetype="pdf")
-            page = doc.load_page(0)
-            pix = page.get_pixmap()
+            # Use fitz (PyMuPDF) to convert the first page of the PDF to a PIL Image
+            pdf_doc = fitz.open(stream=contents, filetype="pdf")
+            page = pdf_doc[0]
+            # Try both get_pixmap and getPixmap for compatibility
+            try:
+                pix = page.get_pixmap()
+            except AttributeError:
+                pix = page.getPixmap()
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         else:
+            file.file.seek(0)
             img = Image.open(file.file)
-        
         img = img.convert("L").resize((256, 256))
         phash = str(imagehash.phash(img))
-        
         response = supabase.table("listings").select("phash").eq("phash", phash).execute()
         is_duplicate = len(response.data or []) > 0
-
-        return JSONResponse(content={"is_duplicate": is_duplicate, "phash": phash})
-    
+        return {"is_duplicate": is_duplicate, "phash": phash}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise HTTPException(status_code=500, detail=f"Deduplication failed: {str(e)}")
+
+@router.get('/health')
+async def health_check():
+    return {"status": "healthy", "supabase_configured": bool(SUPABASE_URL and SUPABASE_KEY)}

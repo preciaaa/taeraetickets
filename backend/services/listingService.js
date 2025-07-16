@@ -126,7 +126,8 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const dedupResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, dedupFormData, {
+      const fastapiBaseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL || 'http://localhost:5002';
+      const dedupResponse = await axios.post(`${fastapiBaseUrl}/check-duplicate`, dedupFormData, {
         headers: dedupFormData.getHeaders(),
       });
       embedding = dedupResponse.data.embedding;
@@ -176,7 +177,8 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const dedupResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, dedupFormData, {
+      const fastapiBaseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL || 'http://localhost:5002';
+      const dedupResponse = await axios.post(`${fastapiBaseUrl}/check-duplicate`, dedupFormData, {
         headers: dedupFormData.getHeaders(),
       });
       phash = dedupResponse.data.phash;
@@ -441,9 +443,10 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
     // Send file to deduplication service
     const formData = new FormData();
     formData.append('file', fileBuffer, { filename: fileName, contentType: fileMime });
+    const fastapiBaseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL || 'http://localhost:5002';
     let dedupRes;
     try {
-      dedupRes = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, formData, {
+      dedupRes = await axios.post(`${fastapiBaseUrl}/check-duplicate`, formData, {
         headers: formData.getHeaders(),
       });
     } catch (err) {

@@ -3,7 +3,7 @@
     "@radix-ui/react-navigation-menu": "^1.2.13"
   },
   "scripts": {
-    "dev:all": "concurrently \"npm run dev --prefix backend\" \"uvicorn backend/app:app --reload --port 8000\" \"python backend/services/imageDedupService.py\" \"npm run dev --prefix frontend\""
+    "dev:all": "concurrently \"npm run dev --prefix backend\" \"uvicorn backend.app:app --port 5002\"  \"npm run dev --prefix frontend\""
   },
   "devDependencies": {
     "concurrently": "^9.2.0"

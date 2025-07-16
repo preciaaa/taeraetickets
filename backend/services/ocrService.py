@@ -9,7 +9,7 @@ import requests
 from io import BytesIO
 
 # Load .env.local explicitly
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path="backend/.env.local")
 
 # Load environment variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")

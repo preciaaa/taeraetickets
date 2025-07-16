@@ -143,7 +143,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
                   onClick={async () => {
                     setCreatingModal(true)
                     try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/events/create`, {
+                      const res = await fetch(apiRoutes.createEvent, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',

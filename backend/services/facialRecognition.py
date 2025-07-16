@@ -2,7 +2,7 @@
 # pip install python-dotenv
 # pip install supabase
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path="backend/.env.local")
 
 import os
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form

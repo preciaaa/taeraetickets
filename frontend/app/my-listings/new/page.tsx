@@ -295,7 +295,7 @@ export default function NewListing() {
 
       if (selectedEvent?.id && isValidDateFormat(extractedFields.date || '')) {
         try {
-          const updateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${selectedEvent.id}/add-date`, {
+          const updateResponse = await fetch(apiRoutes.addEventDate(selectedEvent.id), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
