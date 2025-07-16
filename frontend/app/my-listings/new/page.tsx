@@ -41,6 +41,8 @@ export default function NewListing() {
   const [maxPrice, setMaxPrice] = useState<number>(0);
   const [priceLoading, setPriceLoading] = useState(false);
   const [originalPrice, setOriginalPrice] = useState<number | null>(null);
+  // Add a flag to track if originalPrice is from OCR/backend
+  const [originalPriceFromOCR, setOriginalPriceFromOCR] = useState(false);
 
   const handleSelectEvent = (event: any) => {
     setSelectedEvent(event)
@@ -228,6 +230,7 @@ export default function NewListing() {
         const priceValue = parseFloat(result.parsed.price.replace(/[^\d.]/g, ''));
         if (!isNaN(priceValue)) {
           setOriginalPrice(priceValue);
+          setOriginalPriceFromOCR(true);
         }
       }
       
@@ -634,6 +637,36 @@ export default function NewListing() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                  {/* Original Price Input/Display */}
+                  <div className="space-y-2">
+                    <Label htmlFor="original-price-input" className="text-sm font-medium">Original Price</Label>
+                    {originalPriceFromOCR && originalPrice !== null && originalPrice !== undefined ? (
+                      <Input
+                        id="original-price-input"
+                        type="number"
+                        value={originalPrice}
+                        readOnly
+                        className="pl-8 py-2.5 rounded-lg bg-gray-100 cursor-not-allowed"
+                        style={{ color: '#888' }}
+                      />
+                    ) : (
+                      <Input
+                        id="original-price-input"
+                        type="number"
+                        value={originalPrice === null || originalPrice === undefined ? '' : originalPrice}
+                        onChange={e => {
+                          const value = e.target.value;
+                          setOriginalPrice(value === '' ? null : parseFloat(value));
+                          setOriginalPriceFromOCR(false); // User is typing, so not from OCR
+                        }}
+                        onBlur={e => {
+                          // Optionally, you can validate or finalize the value here
+                        }}
+                        placeholder="Enter original price"
+                        className="pl-8 py-2.5 rounded-lg"
+                      />
+                    )}
                   </div>
                 </>
               )}

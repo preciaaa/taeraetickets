@@ -169,7 +169,11 @@ function parseTicketText(text) {
     } else {
         row = null;
     }
-    fields.row = row.toUpperCase();
+    // Only assign to fields.row if row is not null or undefined
+    if (row !== null && row !== undefined) {
+        fields.row = row.toUpperCase();
+    }
+
     // 3. date (flexible regex, fallback to original string)
     let date = fields.date || '';
     if (!date) {
