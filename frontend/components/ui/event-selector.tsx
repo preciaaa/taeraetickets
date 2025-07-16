@@ -71,7 +71,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
       const result = await response.json()
   
       if (result.num_results === 1) {
-        setScrapedEvent({ ...result, title })
+        setScrapedEvent({ ...result })
         setShowScrapeModal(true)
       } else if (result.num_results > 1) {
         alert(`Found ${result.num_results} events. Please narrow your search.`)
@@ -130,6 +130,7 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
               )}
 
               <div className="space-y-2">
+                <p><strong>Title:</strong> {scrapedEvent?.title}</p>
                 <p><strong>Venue:</strong> {scrapedEvent?.venue}</p>
                 <p><strong>Date:</strong> {scrapedEvent?.date}</p>
               </div>
@@ -141,27 +142,34 @@ export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: E
                 <Button
                   onClick={async () => {
                     setCreatingModal(true)
-                    const { data, error } = await supabase
-                      .from('events')
-                      .insert([{
-                        title: scrapedEvent.title,
-                        venue: scrapedEvent.venue,
-                        // date: scrapedEvent.date, // Dates are off
-                        img_url: scrapedEvent.image,
-                        description: scrapedEvent.description
-                      }])
-                      .select()
-
-                    if (error || !data || !data[0]) {
-                      setEventError('Failed to create event')
-                      setShowScrapeModal(false)
-                      return
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/events/create`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          title: scrapedEvent.title,
+                          venue: scrapedEvent.venue,
+                          // date: scrapedEvent.date, // Add this later if needed
+                          img_url: scrapedEvent.image,
+                          description: scrapedEvent.description,
+                        }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok || !data || !data[0]) {
+                        setEventError('Failed to create event');
+                        setShowScrapeModal(false);
+                        return;
+                      }
+                      onEventSelect(data[0]);
+                      setEventSearch(data[0].title);
+                      setEventSuggestions([]);
+                      setShowScrapeModal(false);
+                    } catch (err) {
+                      setEventError('Failed to create event');
+                      setShowScrapeModal(false);
                     }
-
-                    onEventSelect(data[0])
-                    setEventSearch(data[0].title)
-                    setEventSuggestions([])
-                    setShowScrapeModal(false)
                   }}
                 >
                   Confirm Details

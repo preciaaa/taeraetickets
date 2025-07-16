@@ -1,51 +1,47 @@
-from flask import Flask, request, jsonify
-from pdf2image import convert_from_bytes
+# pip install imagehash PyMuPDF
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
+# from pdf2image import convert_from_bytes
 from PIL import Image
 import imagehash
 from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
+import fitz
 
-load_dotenv(dotenv_path="../.env.local")
+load_dotenv(dotenv_path=".env.local")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Supabase environment variables not loaded. Check .env.local path.")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-app = Flask(__name__)
+router = APIRouter()
 
 POPPLER_PATH = r"C:\Program Files\poppler-24.08.0\Library\bin"  
 
-@app.route('/check-duplicate', methods=['POST'])
-def check_duplicate():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    file = request.files['file']
-    is_pdf = (file.filename and file.filename.endswith('.pdf')) or (file.mimetype == 'application/pdf')
-    if is_pdf:
-        try:
-            images = convert_from_bytes(file.read(), first_page=1, last_page=1, poppler_path=POPPLER_PATH)
-            img = images[0]
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return jsonify({'error': f'PDF to image failed: {str(e)}'}), 500
-    else:
-        try:
-            img = Image.open(file.stream)
-        except Exception as e:
-            return jsonify({'error': f'Image open failed: {str(e)}'}), 500
+@router.post('/check-duplicate')
+async def check_duplicate(file: UploadFile = File(...)):
+    # Check file type
+    is_pdf = file.filename.endswith(".pdf") or file.content_type == "application/pdf"
+    
+    try:
+        if is_pdf:
+            contents = await file.read()
+            doc = fitz.open(stream=contents, filetype="pdf")
+            page = doc.load_page(0)
+            pix = page.get_pixmap()
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        else:
+            img = Image.open(file.file)
+        
+        img = img.convert("L").resize((256, 256))
+        phash = str(imagehash.phash(img))
+        
+        response = supabase.table("listings").select("phash").eq("phash", phash).execute()
+        is_duplicate = len(response.data or []) > 0
 
-    img = img.convert('L').resize((256, 256))
-    phash = str(imagehash.phash(img))
-
-    response = supabase.table("listings").select("phash").eq("phash", phash).execute()
-    is_duplicate = len(response.data) > 1
-
-    print("Computed phash:", phash)
-    print("Supabase response:", response.data)
-    return jsonify({'is_duplicate': is_duplicate, 'phash': phash})
-
-if __name__ == '__main__':
-    app.run(port=5003, debug=True) 
+        return JSONResponse(content={"is_duplicate": is_duplicate, "phash": phash})
+    
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

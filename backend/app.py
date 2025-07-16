@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from services import facialRecognition
 from services import webScrapingService
 from services import ocrService
+from services import imageDedupService
 
 app = FastAPI()
 
@@ -24,3 +25,4 @@ app.add_middleware(
 app.include_router(facialRecognition.router)
 app.include_router(webScrapingService.router)
 app.include_router(ocrService.router)
+app.include_router(imageDedupService.router)
