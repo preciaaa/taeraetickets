@@ -211,6 +211,12 @@ function parseTicketText(text) {
     let category = fields.category || '';
     if (!category) category = extractByLabel('Category', lines);
     fields.category = category || null;
+    if (fields.category) {
+        fields.category = fields.category.replace(/^[:.\\s]+/, '');
+    }
+    if (fields.section) {
+        fields.section = fields.section.replace(/^[:.\\s]+/, '');
+    }
     console.log('Final extracted fields:', fields);
     return fields;
 }
