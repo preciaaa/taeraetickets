@@ -43,11 +43,17 @@ function parseTicketText(text) {
                 else if (label.includes('category')) fields.category = value;
                 else if (label.includes('ticket price')) fields.price = value.replace(/[^\d.]/g, '');
                 else if (label.includes('section')) fields.section = value;
-                // Handle row/seat in one row
-                else if (label.includes('row')) {
-                    // e.g. "A | Seat : 15 |"
-                    const seatMatch = value.match(/seat\s*:?\s*(\w+)/i);
-                    const rowMatch = value.match(/^[A-Z0-9]+/i);
+                // Handle row/seat in one row or split across label/value
+                else if (label.match(/^row\s*[:.]?\s*([A-Z0-9]+)$/i) && value.match(/^seat\s*[:.]?\s*([A-Z0-9]+)$/i)) {
+                    // Table row is split: label is 'Row : A', value is 'Seat : 15'
+                    const rowMatch = label.match(/^row\s*[:.]?\s*([A-Z0-9]+)$/i);
+                    const seatMatch = value.match(/^seat\s*[:.]?\s*([A-Z0-9]+)$/i);
+                    if (rowMatch) fields.row = rowMatch[1];
+                    if (seatMatch) fields.seat = seatMatch[1];
+                } else if (label.includes('row')) {
+                    // Fallback: old logic
+                    const seatMatch = value.match(/seat\s*:? 0([^|\n]+?)(?=\s*\||\s*Seat|$)/i);
+                    const rowMatch = value.match(/[A-Z0-9]+/i);
                     if (rowMatch) fields.row = rowMatch[0];
                     if (seatMatch) fields.seat = seatMatch[1];
                 }
@@ -117,26 +123,20 @@ function parseTicketText(text) {
             }
         }
     }
-    // Sanitize seat_number to be only digits if possible
-    if (fields.seat) {
-        const seatNum = fields.seat.match(/\d+/);
-        if (seatNum) fields.seat = seatNum[0];
+    // --- FINAL: Always extract row/seat from 'Row : X    Seat : Y' if present ---
+    for (const line of lines) {
+        const match = line.match(/Row\s*[:.]?\s*([^\s|]+)\s+Seat\s*[:.]?\s*([^\s|]+)/i);
+        if (match) {
+            fields.row = match[1];
+            fields.seat = match[2];
+            break;
+        }
     }
-    // Sanitize row to be a single value (first word/letter)
-    if (fields.row) {
-        const rowVal = fields.row.match(/[A-Z0-9]+/i);
-        if (rowVal) fields.row = rowVal[0];
-    }
-    // Sanitize section to be a single value (first word/number)
-    if (fields.section) {
-        const secVal = fields.section.match(/[A-Z0-9]+/i);
-        if (secVal) fields.section = secVal[0];
-    }
-    // Sanitize price to be float string
-    if (fields.price) {
-        const priceVal = fields.price.match(/\d+(\.\d+)?/);
-        if (priceVal) fields.price = priceVal[0];
-    }
+    // Remove sanitization for row to preserve original extracted value
+    // if (fields.row) {
+    //     const rowVal = fields.row.match(/[A-Z0-9]+/i);
+    //     if (rowVal) fields.row = rowVal[0];
+    // }
     // 1. section (allow multi-word, table or label)
     let section = '';
     if (fields.section) section = fields.section;
@@ -156,7 +156,7 @@ function parseTicketText(text) {
         const rowMatch = row.match(/Row\s*:? 0([^|\n]+?)(?=\s*\||\s*Seat|$)/i);
         if (rowMatch) {
             let rowVal = rowMatch[1].trim();
-            if (rowVal && rowVal.toLowerCase() !== 'seat') {
+            if (rowVal !== 'Seat') {
                 row = rowVal;
             } else {
                 const fallbackRow = row.match(/[A-Z0-9]+/i);
@@ -169,7 +169,7 @@ function parseTicketText(text) {
     } else {
         row = null;
     }
-    fields.row = row;
+    fields.row = row.toUpperCase();
     // 3. date (flexible regex, fallback to original string)
     let date = fields.date || '';
     if (!date) {
