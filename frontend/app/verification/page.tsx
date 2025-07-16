@@ -69,7 +69,7 @@ export default function VerificationPage() {
       formData.append('file', file)
       formData.append('user_id', userId)
 
-      const response = await fetch('http://localhost:5002/extract-embedding', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/extract-embeding`, {
         method: 'POST',
         body: formData,
       })
@@ -109,7 +109,7 @@ export default function VerificationPage() {
 
 
         // Compare faces
-        const compareRes = await fetch('http://localhost:5002/compare-faces', {
+        const compareRes = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/compare-faces`, {
           method: 'POST',
           body: formData,
         })

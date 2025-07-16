@@ -37,6 +37,75 @@ const upload = multer({
   }
 });
 
+// GET all listings
+router.get('/listings/all', async (req, res) => {
+	try {
+		const { data, error } = await supabase.from('listings').select('*');
+		if (error) throw error;
+		res.status(200).json(data);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+
+// GET listings for a given event ID
+router.get('/listings/getEventListings/:event_id', async (req, res) => {
+	try {
+		const { data, error } = await supabase
+			.from('listings')
+			.select('*')
+			.eq('event_id', req.params.event_id); // <-- filter by event ID
+		if (error) throw error;
+		res.status(200).json(data);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+// GET user's listings
+router.get('/listings/getUserListings/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const { data: listings, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('original_owner_id', userId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    res.json({ listings });
+  } catch (error) {
+    console.error('Get listings error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch listings',
+      details: error.message 
+    });
+  }
+});
+
+// GET listings by ticket id
+router.get('/listings/getListingByTicket/:ticket_id', async (req, res) => {
+	try {
+        const { ticket_id } = req.params;
+        const { data, error } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('id', ticket_id)
+            .single(); // Ensures only one record is returned
+
+        if (error) throw error;
+
+        res.status(200).json(data);
+    } catch (err) {
+        res.status(404).json({ error: err.message || 'Listing not found' });
+    }
+});
+
 router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
   try {
     const { userId } = req.body;
@@ -57,7 +126,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const dedupResponse = await axios.post('http://localhost:5002/check-duplicate', dedupFormData, {
+      const dedupResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, dedupFormData, {
         headers: dedupFormData.getHeaders(),
       });
       embedding = dedupResponse.data.embedding;
@@ -107,7 +176,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const dedupResponse = await axios.post('http://localhost:5002/check-duplicate', dedupFormData, {
+      const dedupResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, dedupFormData, {
         headers: dedupFormData.getHeaders(),
       });
       phash = dedupResponse.data.phash;
@@ -138,7 +207,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
       contentType: req.file.mimetype
     });
     
-    const ocrResponse = await axios.post('http://localhost:5001/extract-text/', formData, {
+    const ocrResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/extract-text/`, formData, {
       headers: {
         ...formData.getHeaders(),
       },
@@ -343,41 +412,6 @@ router.post('/listings', async (req, res) => {
   }
 });
 
-// GET all listings
-router.get('/listings', async (req, res) => {
-	try {
-		const { data, error } = await supabase.from('listings').select('*');
-		if (error) throw error;
-		res.status(200).json(data);
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-	}
-});
-
-// Get user's listings
-router.get('/listings/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const { data: listings, error } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('original_owner_id', userId)
-      .order('date', { ascending: false });
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    res.json({ listings });
-  } catch (error) {
-    console.error('Get listings error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch listings',
-      details: error.message 
-    });
-  }
-});
 
 // Confirm listing (mark as verified)
 router.post('/confirm-listing/:listingId', async (req, res) => {
@@ -409,7 +443,7 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
     formData.append('file', fileBuffer, { filename: fileName, contentType: fileMime });
     let dedupRes;
     try {
-      dedupRes = await axios.post('http://localhost:5002/check-duplicate', formData, {
+      dedupRes = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/check-duplicate`, formData, {
         headers: formData.getHeaders(),
       });
     } catch (err) {
@@ -505,25 +539,6 @@ router.delete('/listings/:listingId', async (req, res) => {
     });
   }
 });
-
-
-router.get('/listings/:ticket_id', async (req, res) => {
-	try {
-        const { ticket_id } = req.params;
-        const { data, error } = await supabase
-            .from('listings')
-            .select('*')
-            .eq('id', ticket_id)
-            .single(); // Ensures only one record is returned
-
-        if (error) throw error;
-
-        res.status(200).json(data);
-    } catch (err) {
-        res.status(404).json({ error: err.message || 'Listing not found' });
-    }
-});
-
 
 router.put('/listings/:ticket_id', async (req, res) => {
 	try {

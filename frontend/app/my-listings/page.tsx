@@ -88,7 +88,7 @@ export default function MyListings() {
     try {
       setLoading(true);
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings/${userId}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings/getUserListings/${userId}`);
       
       if (!response.ok) {
         if (response.status === 404) {

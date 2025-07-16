@@ -144,8 +144,8 @@ export default function EventsPage() {
                 <CarouselItem key={event.id} className="basis-full sm:basis-1/1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 flex justify-center">
                   <Card
                     className="w-[370px] h-[370px] flex flex-col relative mb-2 mt-2 pt-3 pl-3 pr-3 hover:cursor-pointer hover:shadow-md hover:-translate-y-2 transition-shadow duration-200"
-                    onClick={() => router.push(`/events/${slugify(event.title)}`)}
-                  >
+                    onClick={() => router.push(`/events/${slugify(event.title)}?id=${event.id}`)}
+                    >
                     {event.img_url ? (
                       <img
                         src={event.img_url}
@@ -189,7 +189,7 @@ export default function EventsPage() {
                 <CarouselItem key={event.id} className="basis-full sm:basis-1/1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 flex justify-center">
                   <Card
                     className="w-[370px] h-[370px] flex flex-col relative mb-2 mt-2 pt-3 pl-3 pr-3 hover:cursor-pointer hover:shadow-md hover:-translate-y-2 transition-shadow duration-200"
-                    onClick={() => router.push(`/events/${slugify(event.title)}`)}
+                    onClick={() => router.push(`/events/${slugify(event.title)}?id=${event.id}`)}
                   >
                     {event.img_url ? (
                       <img

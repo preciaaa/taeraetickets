@@ -6,8 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabaseClient'
+import { useSearchParams } from 'next/navigation'
 
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -35,48 +37,33 @@ import {
 } from '@/components/ui/popover'
 import Link from 'next/link'
 
-const mockEventData = [
-  {
-    id: 1,
-    title: 'Taylor Swift Eras Tour',
-    venue: 'Singapore Indoor Stadium',
-    date: '2025-07-21',
-    status: 'hot',
-    slug: 'taylor-swift-eras-tour',
-    description: 'Experience all eras of Taylor Swift live in concert. Limited tickets available!',
-    imageUrl: '/images/taylor.jpg',
-  },
-  {
-    id: 2,
-    title: 'Zerobaseone Timeless World Tour',
-    venue: 'Singapore Indoor Stadium',
-    date: '2025-07-21',
-    status: 'normal',
-    slug: 'zerobaseone-timeless-world-tour',
-    description: "Don't miss out on Zerobaseone’s debut world tour in Singapore!",
-    imageUrl: '/images/zb1.jpg',
-  },
-  {
-    id: 3,
-    title: 'IU H.E.R World Tour',
-    venue: 'Kallang Stadium',
-    date: '2025-07-21',
-    status: 'hot',
-    slug: 'iu-her-world-tour',
-    description: 'K-pop queen IU is back with her powerful H.E.R World Tour.',
-    imageUrl: '/images/iu.jpg',
-  },
-]
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
 
-const mockTickets = [
-  { category: 'Cat1', quantity: 2, price: 300 },
-  { category: 'Cat1', quantity: 1, price: 150 },
-  { category: 'Cat2', quantity: 2, price: 220 },
-  { category: 'Cat3', quantity: 1, price: 100 },
-  { category: 'Cat4', quantity: 4, price: 80 },
-]
+interface Event {
+  id: number
+  title: string
+  venue: string
+  date: string
+  description: string
+  img_url: string
+}
 
-const categories = ['Cat1', 'Cat2', 'Cat3', 'Cat4']
+interface Listing {
+  ticket_id: string
+  event_id: number
+  event_name: string
+  section: string
+  row: string
+  seat_number: string
+  price: number
+  category: string
+  venue: string
+  status: string
+  date: string
+  fixed_seating: boolean
+  image_url: string
+}
+
 const quantity = [1, 2, 3, 4, 5, 6]
 
 const FormSchema = z.object({
@@ -86,7 +73,7 @@ const FormSchema = z.object({
 
 async function fetchUserVerification(userId: string): Promise<boolean> {
   try {
-    const res = await fetch(`http://localhost:5000/users/${userId}/verification`)
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/verification`)
     if (!res.ok) throw new Error('Failed to verify user')
     const data = await res.json()
     return data.verified === true
@@ -96,23 +83,41 @@ async function fetchUserVerification(userId: string): Promise<boolean> {
   }
 }
 
-export default function EventPage({ params }: { params: Promise<{ slug: string }> }) {
-  const [slugValue, setSlugValue] = useState<string | null>(null)
-  const [event, setEvent] = useState<typeof mockEventData[0] | null>(null)
+export default function EventPage({ params }: { params: { slug: string } }) {
+  const [event, setEvent] = useState<Event | null>(null)
   const [isUserVerified, setIsUserVerified] = useState(false)
-  const [filteredTickets, setFilteredTickets] = useState(mockTickets)
-  const [selectedTicket, setSelectedTicket] = useState<typeof mockTickets[0] | null>(null)
+  const [listings, setListings] = useState<Listing[]>([])
+  const [filteredListings, setFilteredListings] = useState<Listing[]>([])
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
+  const searchParams = useSearchParams()
+  const eventId = useMemo(() => {
+    const id = searchParams.get('id')
+    return id ? parseInt(id, 10) : null
+  }, [searchParams])
+
   useEffect(() => {
-    params.then((resolved) => {
-      const slug = resolved.slug
-      setSlugValue(slug)
-      const found = mockEventData.find((e) => e.slug === slug.toLowerCase())
-      setEvent(found || null)
-    })
-  }, [params])
+    const fetchEvent = async (id: number) => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/events/${id}`)
+        console.log(res)
+        if (!res.ok) throw new Error('Failed to fetch event')
+        const data = await res.json()
+        setEvent(data)
+      } catch (err) {
+        console.error('Event fetch error:', err)
+        setEvent(null)
+      }
+    }    
+  
+    if (eventId) {
+      fetchEvent(eventId)
+      fetchListings(eventId)
+    }
+  }, [eventId])
 
   useEffect(() => {
     const storedUserId =
@@ -131,19 +136,57 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     resolver: zodResolver(FormSchema),
   })
 
+  const fetchListings = async (eventId: number) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${API_BASE_URL}/listings/getEventListings/${eventId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch listings')
+      }
+
+      const data = await response.json()
+      console.log('Fetched listings:', data)
+      
+      // Filter only active listings
+      const activeListings = data.filter((listing: Listing) => listing.status === 'active')
+      setListings(activeListings)
+      setFilteredListings(activeListings)
+    } catch (error) {
+      console.error('Error fetching listings:', error)
+      toast.error('Failed to load tickets')
+      setListings([])
+      setFilteredListings([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const categories = useMemo(
+    () => [...new Set(listings.map((listing) => listing.category).filter(Boolean))],
+    [listings]
+  )
+
   function onFilter(data: z.infer<typeof FormSchema>) {
-    const filtered = mockTickets.filter((ticket) => {
-      const matchCategory = data.category ? ticket.category === data.category : true
-      const matchQuantity = data.quantity ? ticket.quantity >= data.quantity : true
-      return matchCategory && matchQuantity
+    const filtered = listings.filter((listing) => {
+      const matchCategory = data.category ? listing.category === data.category : true
+      return matchCategory
     })
-    setFilteredTickets(filtered)
+    setFilteredListings(filtered)
     toast.success('Tickets filtered', {
-      description: filtered.map((t) => `${t.category} - Qty: ${t.quantity}, $${t.price}`).join('\n'),
+      description: `Found ${filtered.length} ticket${filtered.length !== 1 ? 's' : ''}`,
     })
   }
 
-  if (!slugValue) return null
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading event...</div>
+  }
+
   if (!event) return notFound()
 
   return (
@@ -151,7 +194,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2 flex items-center gap-2">
           {event.title}
-          {event.status === 'hot' && (
+          {filteredListings.length > 10 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">🔥 Hot</span>
           )}
         </h1>
@@ -161,7 +204,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         <div className="w-full">
           <Image
-            src={event.imageUrl}
+            src={event.img_url}
             alt={event.title}
             width={600}
             height={400}
@@ -247,15 +290,15 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     </FormItem>
                   )}
                 />
-                <div className="flex flex-col justify-end gap-2 md:gap-4">
+                 <div className="flex flex-col justify-end gap-2 md:gap-4">
                   <Button type="submit">Filter</Button>
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => {
                       form.reset()
-                      setFilteredTickets(mockTickets)
-                      setSelectedTicket(null)
+                      setFilteredListings(listings)
+                      setSelectedListing(null)
                     }}
                   >
                     Reset
@@ -265,62 +308,80 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             </form>
           </Form>
 
-          {filteredTickets.length > 0 ? (
+          {isLoading ? (
+            <div className="mt-8 text-gray-500 italic">Loading tickets...</div>
+          ) : filteredListings.length > 0 ? (
             <div className="mt-2 space-y-4">
               <h3 className="text-xl font-semibold">Available Tickets:</h3>
               <ul className="space-y-2">
-                {filteredTickets.map((ticket, idx) => (
+                {filteredListings.map((listing) => (
                   <li
-                    key={idx}
+                    key={listing.ticket_id}
                     className={cn(
                       'border p-4 rounded-md shadow-sm cursor-pointer transition',
-                      selectedTicket?.category === ticket.category && selectedTicket?.price === ticket.price
-                        ? 'border-blue-50 bg-blue-50'
+                      selectedListing?.ticket_id === listing.ticket_id
+                        ? 'border-blue-500 bg-blue-50'
                         : 'hover:bg-gray-50'
                     )}
-                    onClick={() => setSelectedTicket(ticket)}
+                    onClick={() => setSelectedListing(listing)}
                   >
-                    <p className="flex justify-between">
-                      <span>
-                        {ticket.category} | {ticket.quantity}
-                      </span>
-                      <span>${ticket.price}</span>
-                    </p>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">
+                          {listing.category || 'General'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {listing.section && `Section: ${listing.section}`}
+                          {listing.row && ` • Row: ${listing.row}`}
+                          {listing.seat_number && ` • Seat: ${listing.seat_number}`}
+                        </p>
+                        {listing.venue && (
+                          <p className="text-xs text-gray-500 mt-1">{listing.venue}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-lg text-gray-900">
+                          ${listing.price}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {listing.fixed_seating ? 'Fixed Seating' : 'General Admission'}
+                        </p>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
-              <Link href="/profile/verification">
-                <Button
-                  disabled={!selectedTicket}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    if (!selectedTicket) return
-                    if (!isUserVerified) {
-                      toast.error('You need to verify your identity before purchasing tickets!', {
-                        description: 'Go to profile settings to complete identity verification',
-                      })
-                      return
-                    }
-                    setShowConfirm(true)
-                  }}
-                >
-                  Buy Now
-                </Button>
-              </Link>
+              <Button
+                disabled={!selectedListing}
+                onClick={(e) => {
+                  e.preventDefault()
+                  if (!selectedListing) return
+                  if (!isUserVerified) {
+                    toast.error('You need to verify your identity before purchasing tickets!', {
+                      description: 'Go to profile settings to complete identity verification',
+                    })
+                    router.push('/profile/verification')
+                    return
+                  }
+                  setShowConfirm(true)
+                }}
+              >
+                Buy Now
+              </Button>
             </div>
           ) : (
-            <div className="mt-8 text-gray-500 italic">No tickets found for this filter.</div>
+            <div className="mt-8 text-gray-500 italic">No tickets available for this event.</div>
           )}
         </div>
       </div>
 
-      {showConfirm && selectedTicket && (
+      {showConfirm && selectedListing && (
         <div className="fixed inset-0 bg-white-70 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-md">
             <h2 className="text-lg font-semibold mb-4">Confirm Ticket Purchase</h2>
-            <p className="mb-2">Category: {selectedTicket.category}</p>
-            <p className="mb-2">Quantity: {selectedTicket.quantity}</p>
-            <p className="mb-4 font-semibold">Price: ${selectedTicket.price}</p>
+            <p className="mb-2">Category: {selectedListing.category}</p>
+            <p className="mb-2">Section: {selectedListing.section}</p>
+            <p className="mb-4 font-semibold">Price: ${selectedListing.price}</p>
             <div className="flex justify-end gap-4">
               <Button variant="secondary" onClick={() => setShowConfirm(false)}>
                 Cancel
@@ -328,7 +389,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
               <Button
                 onClick={() => {
                   setShowConfirm(false)
-                  setSelectedTicket(null)
+                  setSelectedListing(null)
                   router.push(`/checkout`)
                 }}
               >

@@ -15,6 +15,17 @@ router.get('/events', async (req, res) => {
 	}
 });
 
+// GET event by id
+router.get('/events/:id', async (req, res) => {
+	try {
+		const { data, error } = await supabase.from('events').select('*').select('*').eq('id', req.params.id).single();
+		if (error) throw error;
+		res.status(200).json(data);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
 // Create an event
 router.post('/events/create', async (req, res) => {
 	try {
