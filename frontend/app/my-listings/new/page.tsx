@@ -46,6 +46,11 @@ export default function NewListing() {
     console.log('Selected event:', event)
   }
 
+  const isValidDateFormat = (dateStr: string): boolean => {
+    // Regex to match YYYY-MM-DD format
+    return /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  };  
+
   const handleCreateEvent = async (title: string) => {
     console.log('Creating event with title:', title)
   }
@@ -242,6 +247,11 @@ export default function NewListing() {
       return
     }
 
+    if (!isValidDateFormat(extractedFields.date || '')) {
+      toast.error('Please enter a valid date in YYYY-MM-DD format');
+      return;
+    }    
+
     if (selectedPrice <= 0 || selectedPrice > maxPrice) {
       toast.error(`Please select a valid price between $1 and $${maxPrice}`)
       return
@@ -282,6 +292,25 @@ export default function NewListing() {
       console.log('Selected price:', selectedPrice);
       console.log('Original price from OCR:', originalPrice);
 
+      if (selectedEvent?.id && isValidDateFormat(extractedFields.date || '')) {
+        try {
+          const updateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${selectedEvent.id}/add-date`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ date: extractedFields.date }),
+          });
+      
+          if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            console.warn('Failed to update event date:', errorData.error);
+          }
+        } catch (error) {
+          console.error('Error sending event date to API:', error);
+        }
+      }
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/listings`, {
         method: 'POST',
         headers: {
@@ -426,9 +455,12 @@ export default function NewListing() {
                     id="event_date"
                     value={extractedFields.date || ''}
                     onChange={(e) => updateField('date', e.target.value)}
-                    placeholder="Event date"
-                    className="rounded-lg py-2.5"
+                    placeholder="YYYY-MM-DD"
+                    className={`rounded-lg py-2.5 ${extractedFields.date && !isValidDateFormat(extractedFields.date) ? 'border-red-500' : ''}`}
                   />
+                  {extractedFields.date && !isValidDateFormat(extractedFields.date) && (
+                    <p className="text-sm text-red-500 mt-1">Date must be in YYYY-MM-DD format</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="venue" className="text-sm font-medium">Venue</Label>
