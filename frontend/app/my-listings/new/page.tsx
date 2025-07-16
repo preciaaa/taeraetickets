@@ -214,7 +214,11 @@ export default function NewListing() {
 
       const result = await response.json()
       
-      setExtractedFields(result.parsed || {})
+      const parsed = result.parsed || {};
+      setExtractedFields({
+        ...parsed,
+        seat_number: parsed.seat || parsed.seat_number || ''
+      });
       setExtractedText(result.extractedText || '')
       setIsScanned(result.isScanned || false)
       setProcessedData(result); // Store processed data
