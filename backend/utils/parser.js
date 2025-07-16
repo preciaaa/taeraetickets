@@ -217,7 +217,8 @@ function parseTicketText(text) {
         const dateLine = lines.find(l => l.match(/\b(MON|TUE|WED|THU|FRI|SAT|SUN)\b.*\d{1,2}:\d{2}/i));
         if (dateLine) date = dateLine.trim();
     }
-    // Try to parse to ISO, else fallback
+    // Try to parse to YYYY-MM-DD, else fallback
+    let formattedDate = null;
     if (date) {
         const dateMatch = date.match(/(\w{3,}) (\d{1,2}) (\w{3,}) (\d{4}),? (\d{1,2}:\d{2})(AM|PM)/i);
         if (dateMatch) {
@@ -229,11 +230,15 @@ function parseTicketText(text) {
             if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
             const jsDate = new Date(Number(year), monthIdx, Number(dayNum), hour, minute);
             if (!isNaN(jsDate.getTime())) {
-                date = jsDate.toISOString();
+                // Format as YYYY-MM-DD
+                const yyyy = jsDate.getFullYear();
+                const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(jsDate.getDate()).padStart(2, '0');
+                formattedDate = `${yyyy}-${mm}-${dd}`;
             }
         }
     }
-    fields.date = date || null;
+    fields.date = formattedDate || null;
     // 4. price (look for 'Ticket Price', 'Price', or any $ followed by numbers)
     let price = fields.price || '';
     if (!price) price = extractByLabelAny(['Ticket Price', 'Price'], lines, /[:.\s]+\$?([\d,.]+)/i);
