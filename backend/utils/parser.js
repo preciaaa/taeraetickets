@@ -9,11 +9,6 @@ function parseTicketText(text) {
         section: '',
         row: '',
         seat: '',
-        order_no: '',
-        ticket_type: '',
-        queue_no: '',
-        door: '',
-        entrance: '',
         name: '',
         door_open_time: ''
     };
@@ -45,14 +40,9 @@ function parseTicketText(text) {
                 const label = cells[0].toLowerCase();
                 const value = cells.slice(1).join(' ').replace(/\s+/g, ' ').trim();
                 if (label.includes('name')) fields.name = value;
-                else if (label.includes('order no')) fields.order_no = value.replace(/[^\w\d]/g, '');
-                else if (label.includes('ticket type')) fields.ticket_type = value;
                 else if (label.includes('category')) fields.category = value;
                 else if (label.includes('ticket price')) fields.price = value.replace(/[^\d.]/g, '');
-                else if (label === 'door') fields.door = value;
-                else if (label === 'entrance') fields.entrance = value;
                 else if (label.includes('section')) fields.section = value;
-                else if (label.includes('queue no')) fields.queue_no = value;
                 // Handle row/seat in one row
                 else if (label.includes('row')) {
                     // e.g. "A | Seat : 15 |"
@@ -74,8 +64,6 @@ function parseTicketText(text) {
         }
         return '';
     }
-    if (!fields.order_no) fields.order_no = extractByLabel('Order ?No\.?', lines);
-    if (!fields.ticket_type) fields.ticket_type = extractByLabel('Ticket ?Type', lines);
     if (!fields.category) fields.category = extractByLabel('Category', lines);
     if (!fields.price) {
         let price = extractByLabel('Ticket ?Price', lines, /[:.\s]+\$?([\d,.]+)/i);
@@ -85,21 +73,10 @@ function parseTicketText(text) {
         }
         fields.price = price;
     }
-    if (!fields.door) fields.door = extractByLabel('Door', lines);
-    if (!fields.entrance) fields.entrance = extractByLabel('Entrance', lines);
     if (!fields.section) fields.section = extractByLabel('Section', lines);
     if (!fields.row) fields.row = extractByLabel('Row', lines);
     if (!fields.seat) fields.seat = extractByLabel('Seat', lines);
-    if (!fields.queue_no) fields.queue_no = extractByLabel('Queue ?No\.?', lines);
     if (!fields.name) fields.name = extractByLabel('Name', lines);
-    // Door open time (look for 'Doors open at ...')
-    for (const line of lines) {
-        const match = line.match(/Doors open at ([0-9:.apm ]+)/i);
-        if (match) {
-            fields.door_open_time = match[1].trim();
-            break;
-        }
-    }
     // Event name: first all-caps line that is not a known header/footer/venue/category
     const knownNonEvent = [
         'NAME', 'ORDER', 'TICKET', 'CATEGORY', 'PRICE', 'DOOR', 'SECTION', 'ROW', 'SEAT', 'QUEUE', 'ENTRANCE',
@@ -160,27 +137,10 @@ function parseTicketText(text) {
         const priceVal = fields.price.match(/\d+(\.\d+)?/);
         if (priceVal) fields.price = priceVal[0];
     }
-    // Sanitize order_no to be only digits
-    if (fields.order_no) {
-        const orderVal = fields.order_no.match(/\d+/);
-        if (orderVal) fields.order_no = orderVal[0];
-    }
-    // --- REFINED EXTRACTION FOR SPECIFIED FIELDS ONLY ---
-    // Helper for label-based extraction
-    function extractByLabelAny(labels, lines, pattern = /[:.\s]+(.+)/i) {
-        for (const label of labels) {
-            for (const line of lines) {
-                const regex = new RegExp(label + pattern.source, 'i');
-                const match = line.match(regex);
-                if (match) return match[1].trim();
-            }
-        }
-        return '';
-    }
     // 1. section (allow multi-word, table or label)
     let section = '';
     if (fields.section) section = fields.section;
-    else section = extractByLabelAny(['Section'], lines);
+    else section = extractByLabel('Section', lines);
     if (!section) {
         // Fallback: regex for 'Section: ...' or 'Section ...'
         const secMatch = lines.join('\n').match(/Section\s*[:.\s]+([A-Z0-9 \-]+)(?=\n|$)/i);
@@ -190,10 +150,10 @@ function parseTicketText(text) {
     // 2. row (extract only after 'Row:' and before next pipe or 'Seat')
     let row = '';
     if (fields.row) row = fields.row;
-    else row = extractByLabelAny(['Row'], lines);
+    else row = extractByLabel('Row', lines);
     if (row) {
         // If row is like 'Row : A | Seat : 15', extract 'A'
-        const rowMatch = row.match(/Row\s*:?\s*([^|\n]+?)(?=\s*\||\s*Seat|$)/i);
+        const rowMatch = row.match(/Row\s*:? 0([^|\n]+?)(?=\s*\||\s*Seat|$)/i);
         if (rowMatch) {
             let rowVal = rowMatch[1].trim();
             if (rowVal && rowVal.toLowerCase() !== 'seat') {
@@ -241,7 +201,7 @@ function parseTicketText(text) {
     fields.date = formattedDate || null;
     // 4. price (look for 'Ticket Price', 'Price', or any $ followed by numbers)
     let price = fields.price || '';
-    if (!price) price = extractByLabelAny(['Ticket Price', 'Price'], lines, /[:.\s]+\$?([\d,.]+)/i);
+    if (!price) price = extractByLabel('Ticket Price', lines, /[:.\s]+\$?([\d,.]+)/i);
     if (!price) {
         const priceMatch = lines.join('\n').match(/\$([\d,.]+)/);
         if (priceMatch) price = priceMatch[1];
@@ -249,28 +209,8 @@ function parseTicketText(text) {
     fields.price = price || null;
     // 5. category (label, table, fallback null)
     let category = fields.category || '';
-    if (!category) category = extractByLabelAny(['Category'], lines);
+    if (!category) category = extractByLabel('Category', lines);
     fields.category = category || null;
-    // 6. order_no (label, table, fallback null)
-    let order_no = fields.order_no || '';
-    if (!order_no) order_no = extractByLabelAny(['Order ?No\.?'], lines);
-    fields.order_no = order_no || null;
-    // 7. ticket_type (label, table, fallback null)
-    let ticket_type = fields.ticket_type || '';
-    if (!ticket_type) ticket_type = extractByLabelAny(['Ticket ?Type'], lines);
-    fields.ticket_type = ticket_type || null;
-    // 8. queue_no (label, table, fallback null)
-    let queue_no = fields.queue_no || '';
-    if (!queue_no) queue_no = extractByLabelAny(['Queue ?No\.?', 'Queue Number'], lines);
-    fields.queue_no = queue_no || null;
-    // 9. entrance (label, table, fallback null)
-    let entrance = fields.entrance || '';
-    if (!entrance) entrance = extractByLabelAny(['Entrance'], lines);
-    fields.entrance = entrance || null;
-    // 10. door (label, table, fallback null)
-    let door = fields.door || '';
-    if (!door) door = extractByLabelAny(['Door'], lines);
-    fields.door = door || null;
     console.log('Final extracted fields:', fields);
     return fields;
 }
