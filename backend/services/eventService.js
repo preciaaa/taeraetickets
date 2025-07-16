@@ -43,19 +43,43 @@ router.post('/events/create', async (req, res) => {
 // Update event dates
 router.post('/events/:id/add-date', async (req, res) => {
 	try {
-		const { date } = req.body;
-		const { id } = req.params;
-		const { data, error } = await supabase
-			.from('events')
-			.update({ date })  // this updates the 'date' column
-			.eq('id', id);      // where id matches
-
-		if (error) throw error;
-
-		res.status(200).json({ message: 'Event date updated', data });
+	  const { date } = req.body;
+	  const { id } = req.params;
+  
+	  // Fetch existing dates for the event
+	  const { data: existingEvent, error: fetchError } = await supabase
+		.from('events')
+		.select('dates')
+		.eq('id', id)
+		.single();
+  
+	  if (fetchError) throw fetchError;
+	  if (!existingEvent) {
+		return res.status(404).json({ error: 'Event not found' });
+	  }
+	  
+	  const existingDates = existingEvent.dates || [];
+  
+	  // Prevent duplicate date
+	  if (existingDates.includes(date)) {
+		return res.status(200).json({ message: 'Date already exists', data: existingDates });
+	  }
+  
+	  const updatedDates = [...existingDates, date];
+  
+	  // Update the event with the new dates array
+	  const { data, error: updateError } = await supabase
+		.from('events')
+		.update({ dates: updatedDates })
+		.eq('id', id);
+  
+	  if (updateError) throw updateError;
+  
+	  return res.status(200).json({ message: 'Event date added', data });
 	} catch (err) {
-		res.status(500).json({ error: err.message });
+	  console.error('Error updating event date:', err);
+	  return res.status(500).json({ error: err.message || 'Server error' });
 	}
-});
+  });  
 
 module.exports = router
