@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -70,21 +69,27 @@ export default function CheckoutPage() {
 
     const loadCheckout = async () => {
       try {
-        // Load cart
-        const { data: cartRes } = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${userId}`);
+        // Fetch cart data
+        const cartResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${userId}`);
+        if (!cartResponse.ok) throw new Error('Failed to load cart');
+        const cartRes = await cartResponse.json();
         setCart(cartRes);
 
         // Start checkout
-        const { data: checkoutRes } = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/checkout`,
-          { userId }
-        );
+        const checkoutResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+
+        if (!checkoutResponse.ok) throw new Error('Failed to initiate payment');
+        const checkoutRes = await checkoutResponse.json();
 
         setClientSecret(checkoutRes.clientSecret);
         localStorage.setItem('payment_id', checkoutRes.payment_id); // save for later confirm
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        alert('Failed to load cart or initiate payment');
+        alert(err.message || 'Failed to load cart or initiate payment');
       } finally {
         setLoading(false);
       }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,28 +31,38 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!userId) return;
 
-    axios
-      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/${userId}`)
-      .then((res) => setPayments(res.data))
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/${userId}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load payments");
+        return res.json();
+      })
+      .then((data) => setPayments(data))
       .catch((err) => console.error("Failed to load payments:", err));
   }, [userId]);
 
   const handleConfirm = async (payment_id: string) => {
     if (!payment_id || !userId) {
-      alert('Missing payment ID or user ID');
+      alert("Missing payment ID or user ID");
       return;
     }
 
     try {
-      await axios.post(
+      const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
-        { payment_id, buyer_id: userId }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payment_id, buyer_id: userId }),
+        }
       );
-      alert('Purchase confirmed');
+
+      if (!res.ok) throw new Error("Failed to confirm purchase");
+
+      alert("Purchase confirmed");
       window.location.reload();
     } catch (err) {
       console.error("Confirm API error:", err);
-      alert('Failed to confirm purchase');
+      alert("Failed to confirm purchase");
     }
   };
 
@@ -65,25 +74,32 @@ export default function DashboardPage() {
 
   const submitReport = async () => {
     if (!userId || !reportPaymentId || !reportReason.trim()) {
-      alert('Please enter a report reason');
+      alert("Please enter a report reason");
       return;
     }
 
     try {
-      await axios.post(
+      const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
         {
-          payment_id: reportPaymentId,
-          original_owner_id: userId,
-          reason: reportReason,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payment_id: reportPaymentId,
+            original_owner_id: userId,
+            reason: reportReason,
+          }),
         }
       );
+
+      if (!res.ok) throw new Error("Failed to report seller");
+
       setReportDialogOpen(false);
-      alert('Reported successfully');
+      alert("Reported successfully");
       setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
       console.error("Report API error:", error);
-      alert('Failed to report seller');
+      alert("Failed to report seller");
     }
   };
 
@@ -103,17 +119,13 @@ export default function DashboardPage() {
               >
                 Confirm Purchase
               </Button>
-              <Button
-                onClick={() => handleOpenReport(p.payment_id)}
-                variant="destructive"
-              >
+              <Button onClick={() => handleOpenReport(p.payment_id)} variant="destructive">
                 Report Seller
               </Button>
             </div>
           )}
         </div>
       ))}
-
 
       {/* Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
