@@ -75,18 +75,6 @@ export default function NewListing() {
       const popularityMultiplier = Math.min(1.5, 1 + (existingListings?.length || 0) * 0.1);
       maxPrice *= popularityMultiplier;
 
-      // Factor 2: Event category/type (some events are more valuable)
-      const categoryMultipliers = {
-        'Concert': 1.3,
-        'Sports': 1.2,
-        'Theater': 1.1,
-        'Comedy': 0.9,
-        'General': 1.0
-      };
-      const category = extractedFields.category?.toLowerCase() || 'general';
-      const categoryMultiplier = categoryMultipliers[category as keyof typeof categoryMultipliers] || 1.0;
-      maxPrice *= categoryMultiplier;
-
       // Factor 3: Venue prestige
       const venueMultipliers = {
         'singapore indoor stadium': 1.4,
