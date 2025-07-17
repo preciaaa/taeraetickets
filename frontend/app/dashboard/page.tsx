@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,15 +21,24 @@ interface Payment {
 
 export default function DashboardPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportPaymentId, setReportPaymentId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   const userId =
     typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
 
+  // Fetch payments on mount or userId change
   useEffect(() => {
     if (!userId) return;
+
+    setLoading(true);
+    setError(null);
 
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/${userId}`)
       .then(async (res) => {
@@ -37,47 +46,58 @@ export default function DashboardPage() {
         return res.json();
       })
       .then((data) => setPayments(data))
-      .catch((err) => console.error("Failed to load payments:", err));
+      .catch((err) => {
+        console.error("Failed to load payments:", err);
+        setError("Failed to load payments");
+      })
+      .finally(() => setLoading(false));
   }, [userId]);
 
-  const handleConfirm = async (payment_id: string) => {
-    if (!payment_id || !userId) {
-      alert("Missing payment ID or user ID");
-      return;
-    }
+  const handleConfirm = useCallback(
+    async (payment_id: string) => {
+      if (!payment_id || !userId) {
+        alert("Missing payment ID or user ID");
+        return;
+      }
 
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payment_id, buyer_id: userId }),
-        }
-      );
+      setConfirmingId(payment_id);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/confirm-purchase`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payment_id, buyer_id: userId }),
+          }
+        );
 
-      if (!res.ok) throw new Error("Failed to confirm purchase");
+        if (!res.ok) throw new Error("Failed to confirm purchase");
 
-      alert("Purchase confirmed");
-      window.location.reload();
-    } catch (err) {
-      console.error("Confirm API error:", err);
-      alert("Failed to confirm purchase");
-    }
-  };
+        alert("Purchase confirmed");
+        window.location.reload();
+      } catch (err) {
+        console.error("Confirm API error:", err);
+        alert("Failed to confirm purchase");
+      } finally {
+        setConfirmingId(null);
+      }
+    },
+    [userId]
+  );
 
-  const handleOpenReport = (payment_id: string) => {
+  const handleOpenReport = useCallback((payment_id: string) => {
     setReportPaymentId(payment_id);
     setReportReason("");
     setReportDialogOpen(true);
-  };
+  }, []);
 
-  const submitReport = async () => {
+  const submitReport = useCallback(async () => {
     if (!userId || !reportPaymentId || !reportReason.trim()) {
       alert("Please enter a report reason");
       return;
     }
 
+    setReporting(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
@@ -100,26 +120,45 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Report API error:", error);
       alert("Failed to report seller");
+    } finally {
+      setReporting(false);
     }
-  };
+  }, [userId, reportPaymentId, reportReason]);
 
   return (
-    <div className="max-w-4xl mx-auto mt-10">
+    <div className="max-w-4xl mx-auto mt-10 px-4">
       <h1 className="text-3xl font-bold mb-6">Your Payments</h1>
-      {payments.length === 0 && <p>No payments found.</p>}
+
+      {loading && <p>Loading payments...</p>}
+      {error && <p className="text-red-600">{error}</p>}
+      {!loading && payments.length === 0 && <p>No payments found.</p>}
+
       {payments.map((p) => (
-        <div key={p.payment_id} className="border p-4 rounded-lg shadow mb-4">
-          <p className="font-semibold">Amount: ${p.total_amount}</p>
-          <p>Status: {p.status}</p>
+        <div
+          key={p.payment_id}
+          className="border p-4 rounded-lg shadow mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
+        >
+          <div>
+            <p className="font-semibold">
+              Amount: ${p.total_amount.toFixed(2)}
+            </p>
+            <p>Status: {p.status}</p>
+          </div>
+
           {p.status === "initiated" && (
-            <div className="space-x-2 mt-2">
+            <div className="space-x-2 mt-2 sm:mt-0">
               <Button
                 onClick={() => handleConfirm(p.payment_id)}
                 className="bg-green-500 hover:bg-green-600"
+                disabled={confirmingId === p.payment_id}
               >
-                Confirm Purchase
+                {confirmingId === p.payment_id ? "Confirming..." : "Confirm Purchase"}
               </Button>
-              <Button onClick={() => handleOpenReport(p.payment_id)} variant="destructive">
+              <Button
+                onClick={() => handleOpenReport(p.payment_id)}
+                variant="destructive"
+                disabled={reporting}
+              >
                 Report Seller
               </Button>
             </div>
@@ -128,7 +167,13 @@ export default function DashboardPage() {
       ))}
 
       {/* Report Dialog */}
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+      <Dialog
+        open={reportDialogOpen}
+        onOpenChange={(open) => {
+          setReportDialogOpen(open);
+          if (!open) setReportReason("");
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Report Seller</DialogTitle>
@@ -143,10 +188,11 @@ export default function DashboardPage() {
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setReportReason(e.target.value)
             }
+            rows={4}
           />
           <DialogFooter className="mt-4">
-            <Button onClick={submitReport} disabled={!reportReason.trim()}>
-              Submit Report
+            <Button onClick={submitReport} disabled={!reportReason.trim() || reporting}>
+              {reporting ? "Submitting..." : "Submit Report"}
             </Button>
           </DialogFooter>
         </DialogContent>
