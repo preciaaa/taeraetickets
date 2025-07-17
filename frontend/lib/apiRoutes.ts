@@ -8,6 +8,8 @@ export const apiRoutes = {
   users: `${API_BASE_URL}/users`,
   user: (userId: string) => `${API_BASE_URL}/users/${userId}`,
   userById: (id: string) => `${API_BASE_URL}/users/${id}`,
+  userVerification: (userId: string) => `${API_BASE_URL}/users/${userId}/verification`,
+  userFaceEmbedding: (userId: string) => `${API_BASE_URL}/users/${userId}/face_embedding`, // PUT face embedding
 
   authUsers: `${API_BASE_URL}/auth-users`,
   authUserById: (id: string) => `${API_BASE_URL}/auth-users/${id}`,
@@ -24,6 +26,7 @@ export const apiRoutes = {
   allListings: `${API_BASE_URL}/listings/all`,
   getEventListings: (eventId: string) => `${API_BASE_URL}/listings/getEventListings/${eventId}`,
   getUserListings: (userId: string) => `${API_BASE_URL}/listings/getUserListings/${userId}`,
+  getListingByTicket: (ticketId: string) => `${API_BASE_URL}/listings/getListingByTicket/${ticketId}`,
   listings: `${API_BASE_URL}/listings`,
   createListing: `${API_BASE_URL}/listings`,
   listingById: (listingId: string) => `${API_BASE_URL}/listings/${listingId}`,
@@ -38,6 +41,7 @@ export const apiRoutes = {
   reportSeller: `${API_BASE_URL}/report-seller`,
   checkout: `${API_BASE_URL}/checkout`,
   createStripeAccount: `${API_BASE_URL}/create-stripe-account`,
+  autoRelease: `${API_BASE_URL}/auto-release`,
 
   uploadTicket: `${API_BASE_URL}/upload-ticket`,
 
