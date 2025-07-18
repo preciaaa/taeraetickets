@@ -64,8 +64,6 @@ interface Listing {
   image_url: string
 }
 
-const quantity = [1, 2, 3, 4, 5, 6]
-
 const FormSchema = z.object({
   category: z.coerce.string().optional(),
   quantity: z.coerce.number().optional(),
@@ -224,6 +222,18 @@ export default function EventPage({ params }: { params: { slug: string } }) {
     [filteredListings]
   );
 
+  // Dynamically compute unique available seat numbers from filteredListings
+  const seatNumbers = useMemo(
+    () => [
+      ...new Set(
+        filteredListings
+          .map((listing) => String(listing.seat_number ?? '').trim())
+          .filter(Boolean)
+      ),
+    ],
+    [filteredListings]
+  );
+
   function onFilter(data: z.infer<typeof FormSchema>) {
     const filtered = listings.filter((listing) => {
       const matchCategory = data.category ? listing.category === data.category : true
@@ -327,10 +337,10 @@ export default function EventPage({ params }: { params: { slug: string } }) {
                             <CommandList>
                               <CommandEmpty>No results found.</CommandEmpty>
                               <CommandGroup>
-                                {quantity.map((qty) => (
-                                  <CommandItem key={String(qty)} onSelect={() => form.setValue('quantity', qty)}>
-                                    <Check className={cn('mr-2 h-4 w-4', qty === field.value ? 'opacity-100' : 'opacity-0')} />
-                                    {qty}
+                                {seatNumbers.map((seat) => (
+                                  <CommandItem key={seat} onSelect={() => form.setValue('quantity', seat)}>
+                                    <Check className={cn('mr-2 h-4 w-4', seat === String(field.value) ? 'opacity-100' : 'opacity-0')} />
+                                    {seat}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
