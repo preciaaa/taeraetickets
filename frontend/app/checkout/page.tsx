@@ -78,35 +78,36 @@ export default function CheckoutPage() {
   const listings_id = searchParams.get("listings_id");
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [listing, setListing] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingCheckout, setLoadingCheckout] = useState(true);
 
-  const calledCheckout = useRef(false);
-
+  // Fetch user session on mount
   useEffect(() => {
     async function fetchUser() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      console.log("Supabase session:", session);
       if (session?.user?.id) {
         setUserId(session.user.id);
       } else {
         setUserId(null);
         router.push("/events"); // redirect if not logged in
       }
+      setLoadingUser(false);
     }
     fetchUser();
   }, [router]);
 
+  // Load checkout data after userId and loadingUser are ready
   useEffect(() => {
-    if (calledCheckout.current) return;
-
+    if (loadingUser) return; // wait for user loading to finish
     if (!userId || !listings_id) {
-      setLoading(false);
-      console.log("UserId:", userId);
+      setLoadingCheckout(false);
       return;
     }
-
-    calledCheckout.current = true;
 
     const loadCheckout = async () => {
       try {
@@ -132,25 +133,25 @@ export default function CheckoutPage() {
         alert(err.message || "Failed to load listing or initiate payment");
         router.push("/events");
       } finally {
-        setLoading(false);
+        setLoadingCheckout(false);
       }
     };
 
     loadCheckout();
-  }, [userId, listings_id, router]);
+  }, [userId, listings_id, loadingUser, router]);
 
-  if (loading) return <p>Loading...</p>;
+  if (loadingUser || loadingCheckout) return <p>Loading...</p>;
   if (!clientSecret || !listing) return <p>Failed to load payment</p>;
 
   return (
     <div className="max-w-xl mx-auto mt-10 bg-white p-6 rounded shadow">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
       <div className="border p-3 mb-3 rounded">
-        <div className="font-semibold">{listing.event_name || "Event"}</div>
+        <div className="font-semibold">{listing.summary.event_name || "Event"}</div>
         <div className="text-sm text-gray-600">
           Date: {new Date(listing.summary.date).toLocaleDateString()}
           <br />
-          Price: ${listing.price}
+          Price: ${listing.summary.totalPrice}
         </div>
       </div>
       <Elements stripe={stripePromise} options={{ clientSecret }}>
