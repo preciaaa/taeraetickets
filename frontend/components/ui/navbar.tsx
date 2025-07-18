@@ -39,10 +39,6 @@ export default function Navbar() {
                     <NavigationMenuLink href="/my-listings" className="rounded-full px-5">My Listings</NavigationMenuLink>
                     </NavigationMenuItem>
                         <NavigationMenuLink href="/events" className="rounded-full px-5">Events</NavigationMenuLink>
-                    <NavigationMenuItem>
-                            <NavigationMenuLink href="/cart" className="rounded-full px-5">Cart</NavigationMenuLink>
-                    </NavigationMenuItem>
-
                     {/* Add more menu items here */}
                 </NavigationMenuList>
             </NavigationMenu>

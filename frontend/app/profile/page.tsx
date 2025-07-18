@@ -50,7 +50,7 @@ export default function profilePage() {
       setUserId(uid);
 
       try {
-        const res = await fetch(`http://localhost:5000/users/${uid}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}users/${uid}`);
         const data = await res.json();
         setVerified(data.verified);
         setStripeConnected(!!data.stripe_account_id);
@@ -99,7 +99,7 @@ export default function profilePage() {
     if (!userId) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/users/${userId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${userId}`);
       const data = await res.json();
 
       if (!data.stripe_account_id) {
