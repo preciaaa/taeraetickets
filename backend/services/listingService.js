@@ -428,17 +428,26 @@ router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
       contentType: req.file.mimetype
     });
     
-    const ocrResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/extract-text/`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-      },
-      timeout: 120000 // 2 minute timeout for large files
-    });
+    let extractedText = '';
+    let isScanned = false;
 
-    const extractedText = ocrResponse.data.text;
-    const isScanned = ocrResponse.data.is_scanned || false;
-    console.log('OCR Result:', extractedText);
-    console.log('Is Scanned:', isScanned);
+    try {
+      const ocrResponse = await axios.post(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_API_URL}/extract-text/`, formData, {
+        headers: {
+          ...formData.getHeaders(),
+        },
+        timeout: 120000,
+      });
+      extractedText = ocrResponse.data.text;
+      isScanned = ocrResponse.data.is_scanned || false;
+      console.log('OCR Result:', extractedText);
+      console.log('Is Scanned:', isScanned);
+    } catch (ocrError) {
+      console.error('OCR failed:', ocrError);
+      // fallback defaults:
+      extractedText = '';
+      isScanned = false;
+    }
 
     // Parse ticket text
     let parsedFields = {};
@@ -536,6 +545,46 @@ router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
     // After parsing fields and before creating the listing, force event_name to use the provided value
     let finalEventName = req.body.eventName || parsedFields.event_name || 'Unknown Event';
     parsedFields.event_name = finalEventName;
+
+    const now = new Date().toISOString();
+
+    const listingRecord = {
+      ticket_id: uuidv4(),
+      listings_id: uuidv4(), // or some logic if you want to group tickets
+      event_id: eventId,
+      original_owner_id: userId,
+      event_name: parsedFields.event_name || 'Unknown Event',
+      section: parsedFields.section || '',
+      row: parsedFields.row || '',
+      seat_number: parsedFields.seat || '',
+      price: parsedFields.price ? parseFloat(parsedFields.price) : null,
+      category: parsedFields.category || 'General',
+      venue: parsedFields.venue || '',
+      new_owner_id: null,
+      status: 'pending',  // initial status
+      date: eventDate,
+      fixed_seating: !!(parsedFields.section && parsedFields.row && parsedFields.seat),
+      image_url: publicUrl,
+      parsed_fields: parsedFields,
+      fingerprint: fingerprint,
+      is_verified: false,
+      verified_at: null,
+      created_at: now,
+      updated_at: now,
+      embedding,
+      phash,
+    };
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('listings')
+      .insert([listingRecord])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error inserting listing:', insertError);
+      return res.status(500).json({ error: 'Failed to save listing', details: insertError.message });
+    }
 
     // Don't create listing here - just return the processed data
     res.json({

@@ -104,13 +104,14 @@ async def extract_text(file: UploadFile = File(...)):
 
         # 4. Send to Mistral OCR
         ocr_response = client.ocr.process(
-            model="mistral-ocr-latest",
-            document={
-                "type": "document_url",
-                "document_file": (file.filename, BytesIO(file_bytes), "application/pdf")
-            },
-            include_image_base64=False
-        )
+        model="mistral-ocr-latest",
+        document={
+            "type": "document_url",
+            "document_url": public_url 
+        },
+        include_image_base64=False
+    )
+
         
         # Debug: Print OCR response structure
         print(f"OCR Response type: {type(ocr_response)}")

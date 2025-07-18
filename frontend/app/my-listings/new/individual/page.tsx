@@ -37,6 +37,7 @@ export default function NewIndividualListing() {
   const [priceLoading, setPriceLoading] = useState(false)
   const [originalPrice, setOriginalPrice] = useState<number | null>(null)
   const [originalPriceFromOCR, setOriginalPriceFromOCR] = useState(false)
+  const [showManualInput, setShowManualInput] = useState(false)
   const router = useRouter()
 
   const handleSelectEvent = (event: any) => {
@@ -54,7 +55,7 @@ export default function NewIndividualListing() {
       let maxPrice = basePrice
       
       // Get existing listings for this event
-      const res = await fetch(`${apiRoutes.getEventListings}?event_id=${encodeURIComponent(event.id)}`);
+      const res = await fetch(`${apiRoutes.getEventListings}?event_id=${event.id}`);
       const existingListings = await res.json();      
       
       const popularityMultiplier = Math.min(1.5, 1 + (existingListings?.length || 0) * 0.1)
@@ -211,6 +212,7 @@ export default function NewIndividualListing() {
     } catch (error) {
       console.error("Upload error:", error)
       toast.error(error instanceof Error ? error.message : "Upload failed")
+      setShowManualInput(true)
     } finally {
       setListingUploading(false)
     }
@@ -389,6 +391,13 @@ export default function NewIndividualListing() {
             <CardDescription className="text-gray-500 text-base leading-relaxed">Review and edit the extracted information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 px-6 pb-6">
+            {showManualInput && (
+             <div className="flex items-start p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-x-3">
+               <span className="text-sm text-yellow-800 leading-relaxed">
+                OCR failed. Please fill in the details manually.
+                </span>
+              </div>
+            )}
             {isScanned && (
               <div className="flex items-start p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-x-3">
                 <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
