@@ -49,7 +49,7 @@ export const apiRoutes = {
   fastapiHealth: `${FASTAPI_BACKEND_API_URL}/health`,
 
 // fastapis
-  extractEmbedding: `${FASTAPI_BACKEND_API_URL}/extract-embeding`,
+  extractEmbedding: `${FASTAPI_BACKEND_API_URL}/extract-embedding`,
   compareFaces: `${FASTAPI_BACKEND_API_URL}/compare-faces`,
   checkDuplicate: `${FASTAPI_BACKEND_API_URL}/check-duplicate`,
   extractText: `${FASTAPI_BACKEND_API_URL}/extract-text/`,
