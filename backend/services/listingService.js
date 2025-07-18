@@ -660,7 +660,7 @@ router.post('/listings', async (req, res) => {
 
     res.json({
       success: true,
-      listing_id: listings_id,
+      listings_id: listings_id,
       tickets: inserted
     });
 

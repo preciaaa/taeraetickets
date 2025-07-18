@@ -16,6 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 interface Listing {
   listings_id: string
+  ticket_id: string,
   user_id: string
   image_url: string
   parsed_fields: Record<string, any>

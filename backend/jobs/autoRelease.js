@@ -9,7 +9,7 @@ module.exports = async function autoReleaseJob() {
     // Fetch all payments with status 'initiated'
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
-      .select('payment_id, listing_id, original_owner_id, event_date, total_amount')
+      .select('payment_id, listings_id, original_owner_id, event_date, total_amount')
       .eq('status', 'initiated');
 
     if (paymentsError) {

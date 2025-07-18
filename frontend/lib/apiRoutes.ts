@@ -29,7 +29,7 @@ export const apiRoutes = {
   moveTicketToListing: (ticketId: string) => `${API_BASE_URL}/tickets/${ticketId}/move-to-listing`,
 
   allListings: `${API_BASE_URL}/listings/all`,
-  getEventListings: (eventId: string) => `${API_BASE_URL}/listings/getEventListings/${eventId}`,
+  getEventListings: (eventId: number) => `${API_BASE_URL}/listings/getEventListings/${eventId}`,
   getUserListings: (userId: string) => `${API_BASE_URL}/listings/getUserListings/${userId}`,
   listings: `${API_BASE_URL}/listings`,
   createListing: `${API_BASE_URL}/listings`,

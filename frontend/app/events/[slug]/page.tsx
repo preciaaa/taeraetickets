@@ -49,7 +49,7 @@ interface Event {
 }
 
 interface Listing {
-  listings_id: string
+  listings_id:string,
   ticket_id: string
   event_id: number
   event_name: string
@@ -144,26 +144,6 @@ export default function EventPage({ params }: { params: { slug: string } }) {
   }, [searchParams])
 
   useEffect(() => {
-    const fetchEvent = async (id: number) => {
-      try {
-        const res = await fetch(apiRoutes.event(id))
-        console.log(res)
-        if (!res.ok) throw new Error('Failed to fetch event')
-        const data = await res.json()
-        setEvent(data)
-      } catch (err) {
-        console.error('Event fetch error:', err)
-        setEvent(null)
-      }
-    }    
-  
-    if (eventId) {
-      fetchEvent(eventId)
-      fetchListings(eventId)
-    }
-  }, [eventId])
-
-  useEffect(() => {
     const storedUserId =
       localStorage.getItem('user_id') || sessionStorage.getItem('user_id')
     console.log('[User ID]', storedUserId)
@@ -180,36 +160,46 @@ export default function EventPage({ params }: { params: { slug: string } }) {
     resolver: zodResolver(FormSchema),
   })
 
-  const fetchListings = async (eventId: number) => {
-    try {
-      setIsLoading(true)
-      const response = await fetch(apiRoutes.getEventListings(eventId), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch listings')
-      }
-
-      const data = await response.json()
-      console.log('Fetched listings:', data)
-      
-      // Filter only active listings
-      const activeListings = data.filter((listing: Listing) => listing.status === 'active')
-      setListings(activeListings)
-      setFilteredListings(activeListings)
-    } catch (error) {
-      console.error('Error fetching listings:', error)
-      toast.error('Failed to load tickets')
-      setListings([])
-      setFilteredListings([])
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (typeof eventId !== 'number' || isNaN(eventId)) {
+      setEvent(null);
+      setListings([]);
+      setFilteredListings([]);
+      setIsLoading(false);
+      return;
     }
-  }
+  
+    async function fetchAll() {
+      setIsLoading(true);
+      try {
+        const [eventRes, listingsRes] = await Promise.all([
+          fetch(apiRoutes.event(eventId)),
+          fetch(apiRoutes.getEventListings(eventId))
+        ]);
+        if (!eventRes.ok) throw new Error('Failed to fetch event');
+        if (!listingsRes.ok) throw new Error('Failed to fetch listings');
+  
+        const eventData = await eventRes.json();
+        const listingsData = await listingsRes.json();
+  
+        setEvent(eventData);
+        const activeListings = listingsData.filter((listing: Listing) => listing.status === 'active');
+        setListings(activeListings);
+        setFilteredListings(activeListings);
+      } catch (error) {
+        console.error('Fetch error:', error);
+        setEvent(null);
+        setListings([]);
+        setFilteredListings([]);
+        toast.error('Failed to load event or listings');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  
+    fetchAll();
+  }, [eventId]);  
+  
 
   // Remove the old categories useMemo and instead compute unique categories from filteredListings
   const categories = useMemo(
@@ -252,7 +242,11 @@ export default function EventPage({ params }: { params: { slug: string } }) {
       description: `Found ${filtered.length} ticket${filtered.length !== 1 ? 's' : ''}`,
     });
   }
-  console.log('Fetched listings:', listings);
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading event...</div>
+  }
+  
   if (!listings) return <p>Loading...</p>;
   if (listings.length === 0) {
     return (
@@ -284,11 +278,6 @@ export default function EventPage({ params }: { params: { slug: string } }) {
       </div>
     );
   }
-
-  if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading event...</div>
-  }
-
 
   if (!event) return notFound()
 
@@ -491,10 +480,8 @@ export default function EventPage({ params }: { params: { slug: string } }) {
               <Button
                 onClick={() => {
                   setShowConfirm(false)
-                  if (selectedListing) {
-                    router.push(`/checkout?listings_id=${selectedListing.listings_id}`)
-                  }
                   setSelectedListing(null)
+                  router.push(`/checkout?listings_id=${selectedListing.listings_id}`);
                 }}
               >
                 Confirm
