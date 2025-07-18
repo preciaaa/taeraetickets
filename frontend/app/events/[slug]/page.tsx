@@ -214,35 +214,42 @@ export default function EventPage({ params }: { params: { slug: string } }) {
   const categories = useMemo(
     () => [
       ...new Set(
-        filteredListings
+        listings
           .map((listing) => (listing.category || '').trim().toLowerCase())
           .filter(Boolean)
       ),
     ],
-    [filteredListings]
+    [listings]
   );
 
   // Dynamically compute unique available seat numbers from filteredListings
   const seatNumbers = useMemo(
     () => [
       ...new Set(
-        filteredListings
+        listings
           .map((listing) => String(listing.seat_number ?? '').trim())
           .filter(Boolean)
       ),
     ],
-    [filteredListings]
+    [listings]
   );
 
   function onFilter(data: z.infer<typeof FormSchema>) {
     const filtered = listings.filter((listing) => {
-      const matchCategory = data.category ? listing.category === data.category : true
-      return matchCategory
-    })
-    setFilteredListings(filtered)
+      // Normalize category for comparison
+      const matchCategory = data.category
+        ? (listing.category || '').trim().toLowerCase() === data.category.trim().toLowerCase()
+        : true;
+      // Compare seat number as string
+      const matchSeat = data.quantity
+        ? String(listing.seat_number ?? '').trim() === String(data.quantity).trim()
+        : true;
+      return matchCategory && matchSeat;
+    });
+    setFilteredListings(filtered);
     toast.success('Tickets filtered', {
       description: `Found ${filtered.length} ticket${filtered.length !== 1 ? 's' : ''}`,
-    })
+    });
   }
 
   if (isLoading) {
