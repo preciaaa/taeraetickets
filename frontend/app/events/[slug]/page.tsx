@@ -251,10 +251,43 @@ export default function EventPage({ params }: { params: { slug: string } }) {
       description: `Found ${filtered.length} ticket${filtered.length !== 1 ? 's' : ''}`,
     });
   }
+  console.log('Fetched listings:', listings);
+  if (!listings) return <p>Loading...</p>;
+  if (listings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-16 text-muted-foreground">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-16 h-16 text-gray-400 mb-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-4 4h.01M4 4h16M4 8h16M4 12h8"
+          />
+        </svg>
+        <h2 className="text-xl font-semibold mb-2">No tickets available</h2>
+        <p className="max-w-md text-sm">
+          It looks like there are no listings available for this event right now. Please check back later or explore other events.
+        </p>
+        <a
+          href="/events"
+          className="mt-6 inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition"
+        >
+          Browse All Events
+        </a>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <div className="p-8 text-center text-gray-500">Loading event...</div>
   }
+
 
   if (!event) return notFound()
 
@@ -272,6 +305,7 @@ export default function EventPage({ params }: { params: { slug: string } }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         <div className="w-full">
+          {event.img_url ? (
           <Image
             src={event.img_url}
             alt={event.title}
@@ -279,6 +313,11 @@ export default function EventPage({ params }: { params: { slug: string } }) {
             height={400}
             className="rounded-xl object-cover w-full shadow-md"
           />
+        ) : (
+          <div className="w-full h-64 bg-gray-200 flex items-center justify-center rounded-xl">
+            <span className="text-gray-500">No image available</span>
+          </div>
+        )}
         </div>
 
         <div className="flex flex-col gap-6">
