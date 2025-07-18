@@ -49,9 +49,9 @@ const CheckoutForm = ({ clientSecret }: { clientSecret: string }) => {
       setSubmitting(false);
     } else if (result.paymentIntent?.status === "succeeded") {
       alert(
-        "💳 Payment successful!\nNow go to your dashboard to confirm the purchase."
+        "💳 Payment successful!\nNow go to your profile to confirm the purchase."
       );
-      router.push("/dashboard");
+      router.push("/profile");
     }
   };
 
