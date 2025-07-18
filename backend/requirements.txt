@@ -18,7 +18,6 @@ torch
 torchvision
 # PDF/image conversion
 PyMuPDF
-fitz
 pdf2image
 # HTTP requests
 requests
@@ -27,3 +26,5 @@ mistralai
 # For web scraping (if used)
 beautifulsoup4
 # Any other used packages 
+python-multipart
+playwright

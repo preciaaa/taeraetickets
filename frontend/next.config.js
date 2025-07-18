@@ -3,7 +3,9 @@ module.exports = {
   images: {
     domains: [
       // other domains you may already have,
-      'res.klook.com'
+      'res.klook.com',
+      'upload.wikimedia.org',
+      'static.ticketmaster.sg'
     ],
   },
 } 

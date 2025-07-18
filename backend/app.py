@@ -10,6 +10,7 @@ from .services import ocrService
 from .services import imageDedupService
 
 
+
 app = FastAPI()
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
