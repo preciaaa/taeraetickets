@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
@@ -19,6 +18,7 @@ interface Payment {
   payment_id: string;
   total_amount: number;
   status: string;
+  original_owner_id: string;
 }
 import ThemeSelector from "@/components/ThemeSelector";
 import { apiRoutes } from "@/lib/apiRoutes";
@@ -51,11 +51,12 @@ export default function ProfilePage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
+
+  // Report dialog states
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("");
   const [reportPaymentId, setReportPaymentId] = useState<string | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     const initialise = async () => {
@@ -73,26 +74,10 @@ export default function ProfilePage() {
         user.user_metadata?.username || user.email?.split("@")[0] || "User"
       );
 
-      // Always set selectedPic from user metadata if available
       setSelectedPic(user.user_metadata?.profile_pic || PROFILE_IMAGES[0]);
 
       try {
         const res = await fetch(apiRoutes.user(user.id));
-        const data = await res.json();
-        setVerified(data.verified);
-        setStripeConnected(!!data.stripe_account_id);
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-        setVerified(false);
-        setStripeConnected(false);
-      }
-      const uid = session.user?.id;
-      setUserId(uid);
-
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${uid}`
-        );
         const data = await res.json();
         setVerified(data.verified);
         setStripeConnected(!!data.stripe_account_id);
@@ -108,7 +93,6 @@ export default function ProfilePage() {
     initialise();
   }, [router]);
 
-  // Fetch payments after userId is set
   useEffect(() => {
     if (!userId) return;
     setPaymentsLoading(true);
@@ -172,7 +156,7 @@ export default function ProfilePage() {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ payment_id, buyer_id: userId }),
+            body: JSON.stringify({ payment_id, new_owner_id: userId }),
           }
         );
 
@@ -190,45 +174,42 @@ export default function ProfilePage() {
     [userId]
   );
 
-  const handleOpenReport = useCallback((payment_id: string) => {
-    setReportPaymentId(payment_id);
-    setReportReason("");
-    setReportDialogOpen(true);
-  }, []);
+  const handleOpenReport = useCallback(
+    (payment_id: string) => {
+      setReportPaymentId(payment_id);
+      setReportDialogOpen(true);
+    },
+    []
+  );
 
-  const submitReport = useCallback(async () => {
-    if (!userId || !reportPaymentId || !reportReason.trim()) {
-      alert("Please enter a report reason");
+  const submitReport = async () => {
+    if (!reportPaymentId) {
+      alert("Missing payment ID for report");
       return;
     }
 
     setReporting(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            payment_id: reportPaymentId,
-            original_owner_id: userId,
-            reason: reportReason,
-          }),
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/report-seller`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payment_id: reportPaymentId,
+        }),
+      });
 
       if (!res.ok) throw new Error("Failed to report seller");
 
+      alert("Seller has been reported");
       setReportDialogOpen(false);
-      alert("Reported successfully");
-      setTimeout(() => window.location.reload(), 1000);
+      window.location.reload();
     } catch (error) {
       console.error("Report API error:", error);
       alert("Failed to report seller");
     } finally {
       setReporting(false);
     }
-  }, [userId, reportPaymentId, reportReason]);
+  };
 
   if (loading) {
     return (
@@ -285,7 +266,6 @@ export default function ProfilePage() {
             {verified ? "Already Verified" : "Verify Me"}
           </Button>
         </div>
-        return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="max-w-xl mx-auto p-6 bg-white border border-gray-200 rounded-lg shadow-md space-y-6">
             {/* Profile Pic and Username */}
@@ -449,12 +429,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-        );
-        <div className="text-center">
-          <Button onClick={handleLogout} className="w-full">
-            Log Out
-          </Button>
-        </div>
       </div>
 
       <hr className="my-6 border-gray-300" />
@@ -504,31 +478,18 @@ export default function ProfilePage() {
         open={reportDialogOpen}
         onOpenChange={(open) => {
           setReportDialogOpen(open);
-          if (!open) setReportReason("");
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Report Seller</DialogTitle>
             <DialogDescription>
-              Explain why you are reporting this seller.
+              Are you sure you want to report this seller?
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            className="mt-4"
-            placeholder="Enter reason..."
-            value={reportReason}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setReportReason(e.target.value)
-            }
-            rows={4}
-          />
           <DialogFooter className="mt-4">
-            <Button
-              onClick={submitReport}
-              disabled={!reportReason.trim() || reporting}
-            >
-              {reporting ? "Submitting..." : "Submit Report"}
+            <Button onClick={submitReport} disabled={reporting}>
+              {reporting ? "Reporting..." : "Confirm Report"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -536,3 +497,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

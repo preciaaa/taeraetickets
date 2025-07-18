@@ -98,28 +98,81 @@ router.post('/checkout', async (req, res) => {
       },
     });
 
-    // 4. Insert payment record
+    // DO NOT insert payment record or update listing here.
+    // Wait until payment success (handled in /payment-success).
+
+    // 4. Respond with payment client secret
+    return res.json({
+      clientSecret: paymentIntent.client_secret,
+      payment_intent_id: paymentIntent.id,
+    });
+
+  } catch (err) {
+    console.error('Checkout error:', err);
+    return res.status(500).json({ error: 'Internal server error during checkout' });
+  }
+});
+
+
+//payment success route
+router.post('/payment-success', async (req, res) => {
+  const { payment_intent_id } = req.body;
+  if (!payment_intent_id) {
+    return res.status(400).json({ error: 'Missing payment_intent_id' });
+  }
+
+  try {
+    // Retrieve payment intent from Stripe to get metadata
+    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ error: 'Payment not succeeded' });
+    }
+
+    const user_id = paymentIntent.metadata.new_owner_id;
+    const listings_id = paymentIntent.metadata.listings_id;
+
+    // Check if payment already exists (idempotency)
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('payment_intent_id', payment_intent_id)
+      .single();
+
+    if (existingPayment) {
+      return res.json({ message: 'Payment already recorded' });
+    }
+
+    // Fetch listing
+    const { data: listing, error: listingError } = await supabase
+      .from('listings')
+      .select('listings_id, original_owner_id, price, date')
+      .eq('listings_id', listings_id)
+      .single();
+
+    if (listingError || !listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    // Insert payment record
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
-        listings_id: listings_id,
+        listings_id,
         new_owner_id: user_id,
         original_owner_id: listing.original_owner_id,
         total_amount: listing.price,
         event_date: listing.date,
         status: 'initiated',
-        payment_intent_id: paymentIntent.id,
+        payment_intent_id,
       })
       .select()
       .single();
-    
-      console.log('Payment insert result:', payment, paymentError);
 
     if (paymentError) {
       return res.status(500).json({ error: 'Failed to create payment record' });
     }
 
-    // 5. Mark listing as confirmed (if you want to lock it during payment)
+    // Update listing status to 'sold'
     const { error: listingUpdateError } = await supabase
       .from('listings')
       .update({ status: 'sold' })
@@ -129,17 +182,13 @@ router.post('/checkout', async (req, res) => {
       return res.status(500).json({ error: 'Failed to update listing status' });
     }
 
-    // 6. Respond with payment client secret
-    return res.json({
-      clientSecret: paymentIntent.client_secret,
-      payment_id: payment.payment_id,
-    });
-
+    res.json({ success: true, payment });
   } catch (err) {
-    console.error('Checkout error:', err);
-    return res.status(500).json({ error: 'Internal server error during checkout' });
+    console.error('Error in payment-success route:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // === POST-PURCHASE ACTIONS ===
 
@@ -253,51 +302,34 @@ router.post('/confirm-purchase', async (req, res) => {
   }
 });
 
-// === REPORT SELLER ROUTE ===
+// // === REPORT SELLER ROUTE ===
 
 router.post('/report-seller', async (req, res) => {
   try {
-    const { payment_id, original_owner_id, reason } = req.body;
+    const { payment_id } = req.body;
 
-    if (!payment_id || !original_owner_id || !reason) {
-      return res.status(400).json({ error: 'Missing payment_id, original_owner_id, or reason' });
+    if (!payment_id) {
+      return res.status(400).json({ error: 'Missing payment_id' });
     }
 
-    // Fetch payment and verify ownership
-    const { data: payment, error: paymentError } = await supabase
+    // Set status to 'reported' internally, no need to get from client
+    const { error: updateError, data: updatedPayment } = await supabase
       .from('payments')
-      .select('payment_id, original_owner_id, status')
+      .update({ status: 'reported' })
       .eq('payment_id', payment_id)
+      .select()
       .single();
 
-    if (paymentError || !payment) {
+    if (updateError) {
+      console.error('Error updating payment status:', updateError);
+      return res.status(500).json({ error: 'Failed to update payment status' });
+    }
+
+    if (!updatedPayment) {
       return res.status(404).json({ error: 'Payment not found' });
     }
 
-    if (payment.original_owner_id !== original_owner_id) {
-      return res.status(403).json({ error: 'You can only report your own payments' });
-    }
-
-    if (payment.status === 'disputed') {
-      return res.status(400).json({ error: 'Payment is already disputed' });
-    }
-
-    // Mark the payment as disputed
-    const { error: updateError } = await supabase
-      .from('payments')
-      .update({
-        status: 'disputed',
-        dispute_reason: reason,
-        disputed_at: new Date().toISOString(),
-      })
-      .eq('payment_id', payment_id);
-
-    if (updateError) {
-      console.error('Error updating dispute:', updateError);
-      return res.status(500).json({ error: 'Failed to update dispute status' });
-    }
-
-    return res.status(200).json({ success: true, message: 'Payment marked as disputed' });
+    return res.status(200).json({ success: true, message: `Payment status updated to reported` });
 
   } catch (err) {
     console.error('Unexpected error in report-seller:', err);
@@ -382,3 +414,4 @@ router.post('/manual-auto-release', async (req, res) => {
 
 
 module.exports = router;
+
