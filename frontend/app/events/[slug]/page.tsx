@@ -84,8 +84,8 @@ async function fetchUserVerification(userId: string): Promise<boolean> {
 }
 
 // Utility: group listings by section and row, and chunk consecutive seats
-function groupListings(listings: Listing[]) {
-  const grouped = {};
+function groupListings(listings: Listing[]): Record<string, Record<string, Listing[]>> {
+  const grouped: Record<string, Record<string, Listing[]>> = {};
   listings.forEach(listing => {
     const section = listing.section || 'Unknown Section';
     const row = listing.row || 'Unknown Row';
@@ -94,9 +94,11 @@ function groupListings(listings: Listing[]) {
     grouped[section][row].push(listing);
   });
   // Sort seat numbers within each row
-  Object.values(grouped).forEach(rows => {
-    Object.values(rows).forEach(seats => {
-      seats.sort((a, b) => {
+  Object.keys(grouped).forEach((section) => {
+    const rows = grouped[section];
+    Object.keys(rows).forEach((row) => {
+      const seats = rows[row];
+      seats.sort((a: Listing, b: Listing) => {
         const aNum = parseInt(a.seat_number, 10);
         const bNum = parseInt(b.seat_number, 10);
         if (isNaN(aNum) || isNaN(bNum)) return String(a.seat_number).localeCompare(String(b.seat_number));
@@ -108,10 +110,10 @@ function groupListings(listings: Listing[]) {
 }
 
 // Utility: chunk sorted seat listings into consecutive groups
-function chunkConsecutiveSeats(seats: Listing[]) {
+function chunkConsecutiveSeats(seats: Listing[]): Listing[][] {
   if (seats.length === 0) return [];
-  const result = [];
-  let group = [seats[0]];
+  const result: Listing[][] = [];
+  let group: Listing[] = [seats[0]];
   for (let i = 1; i < seats.length; i++) {
     const prev = parseInt(seats[i - 1].seat_number, 10);
     const curr = parseInt(seats[i].seat_number, 10);
@@ -210,10 +212,17 @@ export default function EventPage({ params }: { params: { slug: string } }) {
     }
   }
 
+  // Remove the old categories useMemo and instead compute unique categories from filteredListings
   const categories = useMemo(
-    () => [...new Set(listings.map((listing) => listing.category).filter(Boolean))],
-    [listings]
-  )
+    () => [
+      ...new Set(
+        filteredListings
+          .map((listing) => (listing.category || '').trim().toLowerCase())
+          .filter(Boolean)
+      ),
+    ],
+    [filteredListings]
+  );
 
   function onFilter(data: z.infer<typeof FormSchema>) {
     const filtered = listings.filter((listing) => {
@@ -285,7 +294,7 @@ export default function EventPage({ params }: { params: { slug: string } }) {
                                 {categories.map((cat) => (
                                   <CommandItem key={cat} onSelect={() => form.setValue('category', cat)}>
                                     <Check className={cn('mr-2 h-4 w-4', cat === field.value ? 'opacity-100' : 'opacity-0')} />
-                                    {cat}
+                                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -319,7 +328,7 @@ export default function EventPage({ params }: { params: { slug: string } }) {
                               <CommandEmpty>No results found.</CommandEmpty>
                               <CommandGroup>
                                 {quantity.map((qty) => (
-                                  <CommandItem key={qty} onSelect={() => form.setValue('quantity', qty)}>
+                                  <CommandItem key={String(qty)} onSelect={() => form.setValue('quantity', qty)}>
                                     <Check className={cn('mr-2 h-4 w-4', qty === field.value ? 'opacity-100' : 'opacity-0')} />
                                     {qty}
                                   </CommandItem>
@@ -358,13 +367,13 @@ export default function EventPage({ params }: { params: { slug: string } }) {
               <h3 className="text-xl font-semibold">Available Tickets:</h3>
               {/* New seat map layout */}
               {Object.entries(groupListings(filteredListings)).map(([section, rows]) => (
-                <div key={section} className="mb-8">
-                  <div className="font-bold text-lg border-b mb-2">{section}</div>
+                <div key={String(section)} className="mb-8">
+                  <div className="font-bold text-lg border-b mb-2">{String(section)}</div>
                   {Object.entries(rows).map(([row, seats]) => (
-                    <div key={row} className="mb-4 pl-4">
-                      <div className="font-semibold mb-1">{row}</div>
+                    <div key={String(row)} className="mb-4 pl-4">
+                      <div className="font-semibold mb-1">{String(row)}</div>
                       {chunkConsecutiveSeats(seats).map((seatGroup, idx) => (
-                        <div key={idx} className="flex flex-row gap-4 mb-2">
+                        <div key={String(idx)} className="flex flex-row gap-4 mb-2">
                           {seatGroup.map((listing) => (
                             <div
                               key={listing.ticket_id}
