@@ -37,6 +37,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import Link from 'next/link'
+import React from 'react'
 
 interface Event {
   id: number
@@ -80,6 +81,49 @@ async function fetchUserVerification(userId: string): Promise<boolean> {
     console.error('[Verification Error]', err)
     return false
   }
+}
+
+// Utility: group listings by section and row, and chunk consecutive seats
+function groupListings(listings: Listing[]) {
+  const grouped = {};
+  listings.forEach(listing => {
+    const section = listing.section || 'Unknown Section';
+    const row = listing.row || 'Unknown Row';
+    if (!grouped[section]) grouped[section] = {};
+    if (!grouped[section][row]) grouped[section][row] = [];
+    grouped[section][row].push(listing);
+  });
+  // Sort seat numbers within each row
+  Object.values(grouped).forEach(rows => {
+    Object.values(rows).forEach(seats => {
+      seats.sort((a, b) => {
+        const aNum = parseInt(a.seat_number, 10);
+        const bNum = parseInt(b.seat_number, 10);
+        if (isNaN(aNum) || isNaN(bNum)) return String(a.seat_number).localeCompare(String(b.seat_number));
+        return aNum - bNum;
+      });
+    });
+  });
+  return grouped;
+}
+
+// Utility: chunk sorted seat listings into consecutive groups
+function chunkConsecutiveSeats(seats: Listing[]) {
+  if (seats.length === 0) return [];
+  const result = [];
+  let group = [seats[0]];
+  for (let i = 1; i < seats.length; i++) {
+    const prev = parseInt(seats[i - 1].seat_number, 10);
+    const curr = parseInt(seats[i].seat_number, 10);
+    if (!isNaN(prev) && !isNaN(curr) && curr === prev + 1) {
+      group.push(seats[i]);
+    } else {
+      result.push(group);
+      group = [seats[i]];
+    }
+  }
+  result.push(group);
+  return result;
 }
 
 export default function EventPage({ params }: { params: { slug: string } }) {
@@ -312,44 +356,37 @@ export default function EventPage({ params }: { params: { slug: string } }) {
           ) : filteredListings.length > 0 ? (
             <div className="mt-2 space-y-4">
               <h3 className="text-xl font-semibold">Available Tickets:</h3>
-              <ul className="space-y-2">
-                {filteredListings.map((listing) => (
-                  <li
-                    key={listing.ticket_id}
-                    className={cn(
-                      'border p-4 rounded-md shadow-sm cursor-pointer transition',
-                      selectedListing?.ticket_id === listing.ticket_id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'hover:bg-gray-50'
-                    )}
-                    onClick={() => setSelectedListing(listing)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">
-                          {listing.category || 'General'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {listing.section && `Section: ${listing.section}`}
-                          {listing.row && ` • Row: ${listing.row}`}
-                          {listing.seat_number && ` • Seat: ${listing.seat_number}`}
-                        </p>
-                        {listing.venue && (
-                          <p className="text-xs text-gray-500 mt-1">{listing.venue}</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-lg text-gray-900">
-                          ${listing.price}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {listing.fixed_seating ? 'Fixed Seating' : 'General Admission'}
-                        </p>
-                      </div>
+              {/* New seat map layout */}
+              {Object.entries(groupListings(filteredListings)).map(([section, rows]) => (
+                <div key={section} className="mb-8">
+                  <div className="font-bold text-lg border-b mb-2">{section}</div>
+                  {Object.entries(rows).map(([row, seats]) => (
+                    <div key={row} className="mb-4 pl-4">
+                      <div className="font-semibold mb-1">{row}</div>
+                      {chunkConsecutiveSeats(seats).map((seatGroup, idx) => (
+                        <div key={idx} className="flex flex-row gap-4 mb-2">
+                          {seatGroup.map((listing) => (
+                            <div
+                              key={listing.ticket_id}
+                              className={cn(
+                                'border p-4 rounded-md shadow-sm cursor-pointer transition min-w-[120px]',
+                                selectedListing?.ticket_id === listing.ticket_id
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'hover:bg-gray-50'
+                              )}
+                              onClick={() => setSelectedListing(listing)}
+                            >
+                              <div className="font-medium text-gray-900">Seat {listing.seat_number}</div>
+                              <div className="text-sm text-gray-600">{listing.category || 'General'}</div>
+                              <div className="text-xs text-gray-500">${listing.price}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+              ))}
               <Button
                 disabled={!selectedListing}
                 onClick={(e) => {
