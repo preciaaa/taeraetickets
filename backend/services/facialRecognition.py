@@ -2,11 +2,10 @@
 # pip install python-dotenv
 # pip install supabase
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path="backend/.env.local")
 
 import os
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
 from typing import List
 import math
 import httpx
@@ -29,11 +28,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 router = APIRouter()
 model = InceptionResnetV1(pretrained='vggface2').eval()
-
-class CompareFacesRequest(BaseModel):
-    userId: str
-    liveEmbedding: List[float]
-    
+ 
 def cosine_similarity(a, b):
     a, b = np.array(a), np.array(b)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))

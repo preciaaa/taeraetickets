@@ -1,3 +1,6 @@
+// This file is deprecated. Use Supabase Auth (auth.users) for all user management.
+// All endpoints below are deprecated and should not be used.
+
 // USER DB
 const express = require('express');
 const connectToSupabase = require('../db/supabase');
@@ -32,6 +35,16 @@ router.post('/users', async (req, res) => {
 		const { email, password } = req.body; // Expect email and password in the request body
 		const { data, error } = await supabase.auth.signUp({ email, password });
 		if (error) throw error;
+
+        // Insert into users table if not already present
+        const userId = data.user?.id;
+        if (userId) {
+            const { count } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('id', userId);
+            if (!count) {
+                await supabase.from('users').insert({ id: userId, username: email });
+            }
+        }
+
 		res.status(201).json(data); // Return the authentication data
 	} catch (err) {
 		res.status(500).json({ error: err.message });
@@ -72,6 +85,33 @@ router.put('/users/:id/verification', async (req, res) => {
 		res.status(500).json({ error: err.message });
 	}
 });
+
+router.get('/users/:id/verification', async (req, res) => {
+	const userId = req.params.id
+  
+	try {
+	  const { data: user, error } = await supabase
+		.from('users')
+		.select('verified')
+		.eq('id', userId)
+		.single()
+  
+	  if (error) {
+		console.error('Supabase error:', error)
+		return res.status(500).json({ message: 'Supabase error' })
+	  }
+  
+	  if (!user) {
+		return res.status(404).json({ message: 'User not found' })
+	  }
+  
+	  return res.json({ verified: user.verified })
+	} catch (err) {
+	  console.error('Server error:', err)
+	  res.status(500).json({ message: 'Server error' })
+	}
+  })
+  
 
 // DELETE a user by ID
 router.delete('/users/:id', async (req, res) => {

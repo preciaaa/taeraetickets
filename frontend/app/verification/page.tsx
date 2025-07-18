@@ -9,6 +9,7 @@ import Webcam from 'react-webcam'
 import { cn } from '@/lib/utils'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { apiRoutes } from '@/lib/apiRoutes';
 
 export default function VerificationPage() {
   const webcamRef = useRef<Webcam>(null)
@@ -69,7 +70,7 @@ export default function VerificationPage() {
       formData.append('file', file)
       formData.append('user_id', userId)
 
-      const response = await fetch('http://localhost:5002/extract-embedding', {
+      const response = await fetch(apiRoutes.extractEmbedding, {
         method: 'POST',
         body: formData,
       })
@@ -109,7 +110,7 @@ export default function VerificationPage() {
 
 
         // Compare faces
-        const compareRes = await fetch('http://localhost:5002/compare-faces', {
+        const compareRes = await fetch(apiRoutes.compareFaces, {
           method: 'POST',
           body: formData,
         })

@@ -28,6 +28,10 @@ function slugify(text: string) {
     .trim()
 }
 
+interface Listing {
+  event_id: number
+}
+
 interface Event {
   id: number
   title: string
@@ -41,30 +45,45 @@ export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [search, setSearch] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [slidesToScroll, setSlidesToScroll] = useState(1)
   const router = useRouter()
 
   useEffect(() => {
     const checkAuthAndFetchEvents = async () => {
-      // Check auth session
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth/login')
         return
       }
-
-      // Fetch events
-      const { data, error } = await supabase.from('events').select('*')
-      if (error) {
-        console.error('Error fetching events:', error.message)
-      } else if (data) {
-        setEvents(data as Event[])
+  
+      const { data: eventsData, error: eventsError } = await supabase.from('events').select('*')
+      if (eventsError) {
+        console.error('Error fetching events:', eventsError.message)
+        return setLoading(false)
       }
-
+  
+      const { data: listingsData, error: listingsError } = await supabase.from('listings').select('event_id')
+      if (listingsError) {
+        console.error('Error fetching listings:', listingsError.message)
+        return setLoading(false)
+      }
+  
+      const listingCounts = listingsData?.reduce((acc: Record<number, number>, listing: Listing) => {
+        acc[listing.event_id] = (acc[listing.event_id] || 0) + 1
+        return acc
+      }, {}) || {}
+  
+      const eventsWithCount = eventsData.map(event => ({
+        ...event,
+        listingCount: listingCounts[event.id] || 0
+      }))
+  
+      setEvents(eventsWithCount)
       setLoading(false)
     }
-
+  
     checkAuthAndFetchEvents()
-  }, [router])
+  }, [router])  
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,7 +94,20 @@ export default function EventsPage() {
       }
     })
   }, [])
-  
+
+   useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width >= 1280) setSlidesToScroll(4) // xl
+      else if (width >= 1024) setSlidesToScroll(3) // lg
+      else if (width >= 768) setSlidesToScroll(2) // md
+      else setSlidesToScroll(1) // sm
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   if (loading) return <div>Loading...</div>
 
@@ -133,7 +165,7 @@ export default function EventsPage() {
       </h2>
 
       <div className="mt-4 relative w-full">
-        <Carousel className="w-auto" opts={{ slidesToScroll: 4, align: 'start' }}>
+        <Carousel className="w-auto" opts={{ align: 'start', slidesToScroll }}>
           <CarouselContent>
             {events
               .filter(event =>
@@ -144,8 +176,8 @@ export default function EventsPage() {
                 <CarouselItem key={event.id} className="basis-full sm:basis-1/1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 flex justify-center">
                   <Card
                     className="w-[370px] h-[370px] flex flex-col relative mb-2 mt-2 pt-3 pl-3 pr-3 hover:cursor-pointer hover:shadow-md hover:-translate-y-2 transition-shadow duration-200"
-                    onClick={() => router.push(`/events/${slugify(event.title)}`)}
-                  >
+                    onClick={() => router.push(`/events/${slugify(event.title)}?id=${event.id}`)}
+                    >
                     {event.img_url ? (
                       <img
                         src={event.img_url}
@@ -180,16 +212,17 @@ export default function EventsPage() {
       <div className="mt-4 relative w-full">
         <Carousel className="w-auto" opts={{ slidesToScroll: 4, align: 'start' }}>
           <CarouselContent>
-            {events
-              .filter(event =>
-                event.title.toLowerCase().includes(search.toLowerCase()) ||
-                event.venue.toLowerCase().includes(search.toLowerCase())
-              )
-              .map((event) => (
+          {[...events]
+            .sort((a, b) => b.listingCount - a.listingCount)
+            .filter(event =>
+              event.title.toLowerCase().includes(search.toLowerCase()) ||
+              event.venue.toLowerCase().includes(search.toLowerCase())
+            )
+            .map(event => (
                 <CarouselItem key={event.id} className="basis-full sm:basis-1/1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 flex justify-center">
                   <Card
                     className="w-[370px] h-[370px] flex flex-col relative mb-2 mt-2 pt-3 pl-3 pr-3 hover:cursor-pointer hover:shadow-md hover:-translate-y-2 transition-shadow duration-200"
-                    onClick={() => router.push(`/events/${slugify(event.title)}`)}
+                    onClick={() => router.push(`/events/${slugify(event.title)}?id=${event.id}`)}
                   >
                     {event.img_url ? (
                       <img
