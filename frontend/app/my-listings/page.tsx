@@ -263,6 +263,7 @@ export default function MyListings() {
                     <div className="mb-4 space-y-3">
                       {tickets.map((ticket: Listing) => (
                         <div key={ticket.fingerprint || ticket.ticket_id} className="border rounded-lg p-3 bg-gray-50">
+                          <p><strong>Event Name:</strong> {ticket.event_name}</p>
                           <p><strong>Section:</strong> {ticket.section || ticket.parsed_fields?.section || '-'}</p>
                           <p><strong>Row:</strong> {ticket.row || ticket.parsed_fields?.row || '-'}</p>
                           <p><strong>Seat:</strong> {ticket.seat_number || ticket.parsed_fields?.seat || '-'}</p>

@@ -31,16 +31,16 @@ BUCKET_NAME = "tickets"
 def ensure_bucket_exists():
     try:
         # Check if bucket exists
-        bucket_url = f"{SUPABASE_URL}/storage/v1/bucket/{BUCKET_NAME}"
+        bucket_url = f"{SUPABASE_URL}/storage/v1/buckets/{BUCKET_NAME}"
         response = requests.get(
             bucket_url,
             headers={"Authorization": f"Bearer {SUPABASE_KEY}"}
         )
-        
+        print(bucket_url)
         if response.status_code == 404:
             # Create bucket if it doesn't exist
             create_response = requests.post(
-                f"{SUPABASE_URL}/storage/v1/bucket",
+                f"{SUPABASE_URL}/storage/v1/buckets",
                 headers={
                     "Authorization": f"Bearer {SUPABASE_KEY}",
                     "Content-Type": "application/json"
@@ -89,8 +89,12 @@ async def extract_text(file: UploadFile = File(...)):
                 "Authorization": f"Bearer {SUPABASE_KEY}",
                 "Content-Type": "application/pdf"
             },
-            files={"file": (file_name, BytesIO(file_bytes), "application/pdf")}
+            data=file_bytes
         )
+        bucket_check_url = f"{SUPABASE_URL}/storage/v1/buckets/{BUCKET_NAME}"
+        bucket_resp = requests.get(bucket_check_url, headers={"Authorization": f"Bearer {SUPABASE_KEY}"})
+        print(f"Bucket check before upload: {bucket_resp.status_code} {bucket_resp.text}")
+
 
         print(f"Upload response status: {response.status_code}")
         print(f"Upload response: {response.text}")

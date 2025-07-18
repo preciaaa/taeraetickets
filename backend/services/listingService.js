@@ -506,7 +506,7 @@ router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
         .select('id')
         .eq('title', parsedFields.event_name)
         .eq('venue', parsedFields.venue)
-        .eq('date', eventDate)
+        .eq('dates', `{${eventDate ? eventDate.toISOString() : ''}}`) 
         .single();
       
       if (eventCheckError && eventCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -523,10 +523,8 @@ router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
           .insert({
             title: parsedFields.event_name,
             venue: parsedFields.venue || '',
-            date: eventDate,
-            description: `Event at ${parsedFields.venue || 'Unknown venue'}`,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            dates: eventDate ? [eventDate.toISOString()] : null,
+            description: `Event at ${parsedFields.venue || 'Unknown venue'}`
           })
           .select()
           .single();

@@ -55,7 +55,7 @@ export default function NewIndividualListing() {
       let maxPrice = basePrice
       
       // Get existing listings for this event
-      const res = await fetch(`${apiRoutes.getEventListings}?event_id=${event.id}`);
+      const res = await fetch(apiRoutes.getEventListings(event.id));
       const existingListings = await res.json();      
       
       const popularityMultiplier = Math.min(1.5, 1 + (existingListings?.length || 0) * 0.1)
