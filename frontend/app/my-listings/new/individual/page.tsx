@@ -52,12 +52,14 @@ export default function NewIndividualListing() {
     try {
       const basePrice = 100
       let maxPrice = basePrice
-      const { data: existingListings } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("event_name", event.title)
+      
+      // Get existing listings for this event
+      const res = await fetch(`${apiRoutes.getEventListings}?event_id=${encodeURIComponent(event.id)}`);
+      const existingListings = await res.json();      
+      
       const popularityMultiplier = Math.min(1.5, 1 + (existingListings?.length || 0) * 0.1)
       maxPrice *= popularityMultiplier
+      
       const venueMultipliers = {
         "singapore indoor stadium": 1.4,
         "national stadium": 1.3,
@@ -65,9 +67,11 @@ export default function NewIndividualListing() {
         "capitol theatre": 1.2,
         "gateway theatre": 1.1
       }
+      
       const venue = extractedFields.venue?.toLowerCase() || ""
       const venueMultiplier = venueMultipliers[venue as keyof typeof venueMultipliers] || 1.0
       maxPrice *= venueMultiplier
+      
       let seatMultiplier = 1.0
       if (extractedFields.section) {
         const section = extractedFields.section.toLowerCase()
@@ -80,6 +84,7 @@ export default function NewIndividualListing() {
         }
       }
       maxPrice *= seatMultiplier
+      
       const now = new Date()
       const eventDate = extractedFields.date ? new Date(extractedFields.date) : null
       if (eventDate) {
@@ -90,14 +95,18 @@ export default function NewIndividualListing() {
           maxPrice *= 1.1
         }
       }
+      
       const month = now.getMonth()
       const seasonalMultiplier = (month >= 11 || month <= 1) ? 1.1 : 1.0
       maxPrice *= seasonalMultiplier
+      
       maxPrice = Math.min(maxPrice, 500)
       maxPrice = Math.max(maxPrice, 50)
+      
       setMaxPrice(Math.round(maxPrice))
       setSelectedPrice(Math.round(maxPrice * 0.8))
     } catch (error) {
+      console.error("Error calculating max price:", error)
       setMaxPrice(150)
       setSelectedPrice(120)
     } finally {
@@ -142,8 +151,15 @@ export default function NewIndividualListing() {
       toast.error("Please select a file first")
       return
     }
+    
+    if (!selectedEvent) {
+      toast.error("Please select an event first")
+      return
+    }
+
     setTicketUploaded(true)
     setListingUploading(true)
+    
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
@@ -151,29 +167,38 @@ export default function NewIndividualListing() {
         setListingUploading(false)
         return
       }
+
       const formData = new FormData()
       formData.append("ticket", file)
       formData.append("userId", user.id)
+      
       if (selectedEvent && selectedEvent.title) {
         formData.append("eventName", selectedEvent.title)
       }
+
+      // Use the correct API route for processing tickets
       const response = await fetch(apiRoutes.processTicket, {
         method: "POST",
         body: formData
       })
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Processing failed")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
+
       const result = await response.json()
       const parsed = result.parsed || {}
+      
       setExtractedFields({
         ...parsed,
         seat_number: parsed.seat || parsed.seat_number || ""
       })
+      
       setExtractedText(result.extractedText || "")
       setIsScanned(result.isScanned || false)
       setProcessedData(result)
+      
       if (result.parsed?.price) {
         const priceValue = parseFloat(result.parsed.price.replace(/[^\d.]/g, ""))
         if (!isNaN(priceValue)) {
@@ -181,8 +206,10 @@ export default function NewIndividualListing() {
           setOriginalPriceFromOCR(true)
         }
       }
+      
       toast.success("Ticket processed successfully! Review the details below.")
     } catch (error) {
+      console.error("Upload error:", error)
       toast.error(error instanceof Error ? error.message : "Upload failed")
     } finally {
       setListingUploading(false)
@@ -194,19 +221,24 @@ export default function NewIndividualListing() {
       toast.error("Please select an event first")
       return
     }
+    
     if (!ticketUploaded) {
       toast.error("Please upload and process a ticket first")
       return
     }
+    
     if (!isValidDateFormat(extractedFields.date || "")) {
       toast.error("Please enter a valid date in YYYY-MM-DD format")
       return
     }
+    
     if (selectedPrice <= 0 || selectedPrice > maxPrice) {
       toast.error(`Please select a valid price between $1 and $${maxPrice}`)
       return
     }
+
     setListingUploading(true)
+    
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
@@ -214,6 +246,7 @@ export default function NewIndividualListing() {
         setListingUploading(false)
         return
       }
+
       const listingData = {
         event_id: processedData?.eventId || selectedEvent.id,
         original_owner_id: user.id,
@@ -231,20 +264,26 @@ export default function NewIndividualListing() {
         embedding: processedData?.embedding,
         phash: processedData?.phash
       }
-      const response = await fetch(apiRoutes.listings, {
+
+      // Use the correct API route for creating listings
+      const response = await fetch(apiRoutes.createListing, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(listingData)
       })
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create listing")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
+
+      const result = await response.json()
       toast.success("Listing created successfully!")
       router.push("/my-listings")
     } catch (error) {
+      console.error("Submit error:", error)
       toast.error(error instanceof Error ? error.message : "Failed to create listing")
     } finally {
       setListingUploading(false)
@@ -264,10 +303,12 @@ export default function NewIndividualListing() {
         <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight drop-shadow-sm">Create a New Listing</h1>
         <p className="text-gray-600 text-lg">Upload your ticket and extract details automatically. Please ensure your event name is correct.</p>
       </div>
+      
       <EventSelector
         selectedEvent={selectedEvent}
         onEventSelect={handleSelectEvent}
       />
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90">
           <CardHeader className="pb-6">
@@ -338,6 +379,7 @@ export default function NewIndividualListing() {
             </Button>
           </CardContent>
         </Card>
+        
         <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90">
           <CardHeader className="pb-6">
             <div className="mb-4 flex items-center gap-3">
@@ -423,6 +465,7 @@ export default function NewIndividualListing() {
           </CardContent>
         </Card>
       </div>
+      
       {Object.keys(extractedFields).length > 0 && (
         <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90 mb-8">
           <CardHeader className="pb-6">
@@ -503,6 +546,7 @@ export default function NewIndividualListing() {
           </CardContent>
         </Card>
       )}
+      
       {Object.keys(extractedFields).length > 0 && (
         <div className="mt-8 text-center">
           <Button
@@ -530,4 +574,4 @@ export default function NewIndividualListing() {
       )}
     </div>
   )
-}  
+}

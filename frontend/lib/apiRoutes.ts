@@ -23,13 +23,21 @@ export const apiRoutes = {
   createEvent: `${API_BASE_URL}/events/create`,
   addEventDate: (eventId: string) => `${API_BASE_URL}/events/${eventId}/add-date`,
 
+  ticket: (ticketId: string) => `${API_BASE_URL}/tickets/${ticketId}`,
+  updateTicket: (ticketId: string) => `${API_BASE_URL}/tickets/${ticketId}`,
+  deleteTicket: (ticketId: string) => `${API_BASE_URL}/tickets/${ticketId}`,
+  moveTicketToListing: (ticketId: string) => `${API_BASE_URL}/tickets/${ticketId}/move-to-listing`,
+
   allListings: `${API_BASE_URL}/listings/all`,
   getEventListings: (eventId: string) => `${API_BASE_URL}/listings/getEventListings/${eventId}`,
   getUserListings: (userId: string) => `${API_BASE_URL}/listings/getUserListings/${userId}`,
-  getListingByTicket: (ticketId: string) => `${API_BASE_URL}/listings/getListingByTicket/${ticketId}`,
   listings: `${API_BASE_URL}/listings`,
   createListing: `${API_BASE_URL}/listings`,
   listingById: (listingId: string) => `${API_BASE_URL}/listings/${listingId}`,
+  updateListing: (listingId: string) => `${API_BASE_URL}/listings/${listingId}`, 
+  deleteListing: (listingId: string) => `${API_BASE_URL}/listings/${listingId}`,
+  listingSummary: (listingId: string) => `${API_BASE_URL}/listings/${listingId}/summary`,
+  listingByListingId: (listingId: string) => `${API_BASE_URL}/listings/by-listing-id/${listingId}`,
   confirmListing: (listingId: string) => `${API_BASE_URL}/confirm-listing/${listingId}`,
 
   cart: (userId: string) => `${API_BASE_URL}/cart/${userId}`,

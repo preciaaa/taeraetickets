@@ -37,6 +37,81 @@ const upload = multer({
   }
 });
 
+// TICKETS
+
+// GET single ticket by ticket_id
+router.get('/tickets/:ticket_id', async (req, res) => {
+  try {
+      const { ticket_id } = req.params;
+      const { data, error } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('ticket_id', ticket_id)
+          .single();
+
+      if (error) throw error;
+      res.status(200).json(data);
+  } catch (err) {
+      res.status(404).json({ error: err.message || 'Ticket not found' });
+  }
+});
+
+// UPDATE single ticket by ticket_id
+router.put('/tickets/:ticket_id', async (req, res) => {
+  try {
+      const { ticket_id } = req.params;
+      const updateFields = req.body;
+
+      const { data, error } = await supabase
+          .from('listings')
+          .update({
+              ...updateFields,
+              updated_at: new Date().toISOString()
+          })
+          .eq('ticket_id', ticket_id)
+          .select()
+          .single();
+
+      if (error) throw error;
+      res.status(200).json(data);
+  } catch (err) {
+      res.status(400).json({ error: err.message || 'Failed to update ticket' });
+  }
+});
+
+// DELETE single ticket by ticket_id
+router.delete('/tickets/:ticket_id', async (req, res) => {
+  try {
+      const { ticket_id } = req.params;
+      const { userId } = req.body;
+
+      // Verify ownership
+      const { data: ticket, error: fetchError } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('ticket_id', ticket_id)
+          .eq('original_owner_id', userId)
+          .single();
+
+      if (fetchError || !ticket) {
+          return res.status(404).json({ error: 'Ticket not found or unauthorized' });
+      }
+
+      const { error: deleteError } = await supabase
+          .from('listings')
+          .delete()
+          .eq('ticket_id', ticket_id);
+
+      if (deleteError) throw deleteError;
+      res.json({ success: true });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+
+// LISTINGS
+
 // GET all listings
 router.get('/listings/all', async (req, res) => {
 	try {
@@ -48,6 +123,166 @@ router.get('/listings/all', async (req, res) => {
 	}
 });
 
+router.get('/listings/:listings_id', async (req, res) => {
+  try {
+      const { listings_id } = req.params;
+      const { data: tickets, error } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('listings_id', listings_id)
+          .order('seat_number', { ascending: true });
+
+      if (error) throw error;
+      
+      // Calculate summary info
+      const totalPrice = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
+      const sections = [...new Set(tickets.map(t => t.section).filter(Boolean))];
+      
+      res.status(200).json({
+          listings_id,
+          tickets,
+          summary: {
+              totalPrice,
+              ticketCount: tickets.length,
+              sections,
+              venue: tickets[0]?.venue,
+              event_name: tickets[0]?.event_name,
+              date: tickets[0]?.date
+          }
+      });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE all tickets in a listing (bulk update)
+router.put('/listings/:listings_id', async (req, res) => {
+  try {
+      const { listings_id } = req.params;
+      const updateFields = req.body;
+
+      const { data, error } = await supabase
+          .from('listings')
+          .update({
+              ...updateFields,
+              updated_at: new Date().toISOString()
+          })
+          .eq('listings_id', listings_id)
+          .select();
+
+      if (error) throw error;
+      res.status(200).json(data);
+  } catch (err) {
+      res.status(400).json({ error: err.message || 'Failed to update listing' });
+  }
+});
+
+// DELETE entire listing (all tickets)
+router.delete('/listings/:listings_id', async (req, res) => {
+  try {
+      const { listings_id } = req.params;
+      const { userId } = req.body;
+
+      // Verify ownership of at least one ticket in the listing
+      const { data: tickets, error: fetchError } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('listings_id', listings_id)
+          .eq('original_owner_id', userId);
+
+      if (fetchError || !tickets || tickets.length === 0) {
+          return res.status(404).json({ error: 'Listing not found or unauthorized' });
+      }
+
+      // Delete all tickets in the listing
+      const { error: deleteError } = await supabase
+          .from('listings')
+          .delete()
+          .eq('listings_id', listings_id);
+
+      if (deleteError) throw deleteError;
+
+      // Clean up storage files
+      for (const ticket of tickets) {
+          if (ticket.image_url) {
+              const fileName = ticket.image_url.split('/').pop();
+              if (fileName) {
+                  await supabase.storage
+                      .from('tickets')
+                      .remove([fileName]);
+              }
+          }
+      }
+
+      res.json({ success: true, deletedCount: tickets.length });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/tickets/:ticket_id/move-to-listing', async (req, res) => {
+  try {
+      const { ticket_id } = req.params;
+      const { new_listings_id, userId } = req.body;
+
+      // Verify ownership
+      const { data: ticket, error: fetchError } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('ticket_id', ticket_id)
+          .eq('original_owner_id', userId)
+          .single();
+
+      if (fetchError || !ticket) {
+          return res.status(404).json({ error: 'Ticket not found or unauthorized' });
+      }
+
+      const { data, error } = await supabase
+          .from('listings')
+          .update({
+              listings_id: new_listings_id,
+              updated_at: new Date().toISOString()
+          })
+          .eq('ticket_id', ticket_id)
+          .select()
+          .single();
+
+      if (error) throw error;
+      res.status(200).json(data);
+  } catch (err) {
+      res.status(400).json({ error: err.message || 'Failed to move ticket' });
+  }
+});
+
+router.get('/listings/:listings_id/summary', async (req, res) => {
+  try {
+      const { listings_id } = req.params;
+      
+      const { data: tickets, error } = await supabase
+          .from('listings')
+          .select('price, section, venue, event_name, date, status')
+          .eq('listings_id', listings_id);
+
+      if (error) throw error;
+      
+      const totalPrice = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
+      const sections = [...new Set(tickets.map(t => t.section).filter(Boolean))];
+      const activeCount = tickets.filter(t => t.status === 'active').length;
+      
+      res.status(200).json({
+          listings_id,
+          totalPrice,
+          ticketCount: tickets.length,
+          activeTicketCount: activeCount,
+          sections,
+          venue: tickets[0]?.venue,
+          event_name: tickets[0]?.event_name,
+          date: tickets[0]?.date
+      });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
 
 // GET listings for a given event ID
 router.get('/listings/getEventListings/:event_id', async (req, res) => {
@@ -88,23 +323,6 @@ router.get('/listings/getUserListings/:userId', async (req, res) => {
   }
 });
 
-// GET listings by ticket id
-router.get('/listings/getListingByTicket/:ticket_id', async (req, res) => {
-	try {
-        const { ticket_id } = req.params;
-        const { data, error } = await supabase
-            .from('listings')
-            .select('*')
-            .eq('id', ticket_id)
-            .single(); 
-
-        if (error) throw error;
-
-        res.status(200).json(data);
-    } catch (err) {
-        res.status(404).json({ error: err.message || 'Listing not found' });
-    }
-});
 
 // POST processed ticket details 
 router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
@@ -348,65 +566,75 @@ router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
 router.post('/listings', async (req, res) => {
   try {
     const listingData = req.body;
-    
-    console.log('Received listing data:', listingData);
-    console.log('Price from request:', listingData.price);
-    console.log('Original price from parsed_fields:', listingData.parsed_fields?.price);
-    
-    // Validate required fields
+    const tickets = listingData.tickets || [listingData]; // If one, wrap as array
+
     if (!listingData.event_id || !listingData.original_owner_id || !listingData.event_name) {
       return res.status(400).json({ error: 'Missing required fields: event_id, original_owner_id, event_name' });
     }
 
-    // Create listing record in database
-    const { data: listing, error: dbError } = await supabase
+    const listings_id = uuidv4(); // Shared for all tickets in this listing
+    const now = new Date().toISOString();
+
+    const ticketsToInsert = tickets.map(ticket => ({
+      ticket_id: uuidv4(),
+      listings_id,
+      event_id: ticket.event_id,
+      original_owner_id: ticket.original_owner_id,
+      event_name: ticket.event_name,
+      section: ticket.section || '',
+      row: ticket.row || null,
+      seat_number: ticket.seat_number || null,
+      price: ticket.price ? parseFloat(ticket.price) : null,
+      category: ticket.category || 'General',
+      venue: ticket.venue || '',
+      new_owner_id: null,
+      status: 'active',
+      date: ticket.date || null,
+      fixed_seating: !!(ticket.section && ticket.row && ticket.seat_number),
+      image_url: ticket.image_url || null,
+      parsed_fields: ticket.parsed_fields || {},
+      fingerprint: ticket.fingerprint || null,
+      is_verified: false,
+      verified_at: null,
+      created_at: now,
+      updated_at: now,
+      embedding: ticket.embedding || null,
+      phash: ticket.phash || null
+    }));
+
+    const { data: inserted, error } = await supabase
       .from('listings')
-      .insert({
-        ticket_id: uuidv4(),
-        event_id: listingData.event_id,
-        original_owner_id: listingData.original_owner_id,
-        event_name: listingData.event_name,
-        section: listingData.section || '',
-        row: listingData.row || null,
-        seat_number: listingData.seat_number || null,
-        price: listingData.price ? parseFloat(listingData.price) : null,
-        category: listingData.category || 'General',
-        venue: listingData.venue || '',
-        new_owner_id: null,
-        status: 'active',
-        date: listingData.date || null,
-        fixed_seating: !!(listingData.section && listingData.row && listingData.seat_number),
-        image_url: listingData.image_url || null,
-        parsed_fields: listingData.parsed_fields || {},
-        fingerprint: listingData.fingerprint || null,
-        is_verified: false,
-        verified_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        embedding: listingData.embedding || null,
-        phash: listingData.phash || null
-      })
-      .select()
-      .single();
+      .insert(ticketsToInsert)
+      .select();
 
-    if (dbError) {
-      throw new Error(`Database error: ${dbError.message}`);
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
     }
-
-    console.log('Listing created successfully:', listing);
-    console.log('Stored price in database:', listing.price);
 
     res.json({
       success: true,
-      listing: listing
+      listing_id: listings_id,
+      tickets: inserted
     });
 
   } catch (error) {
-    console.error('Create listing error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create listing',
-      details: error.message 
-    });
+    console.error('Create multi-ticket listing error:', error);
+    res.status(500).json({ error: 'Failed to create listing', details: error.message });
+  }
+});
+
+router.get('/listings/by-listing-id/:listings_id', async (req, res) => {
+  try {
+    const { listings_id } = req.params;
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('listings_id', listings_id);
+
+    if (error) throw error;
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -421,7 +649,7 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
     const { data: listing, error: fetchError } = await supabase
       .from('listings')
       .select('*')
-      .eq('ticket_id', listingId)
+      .eq('listings_id', listingId)
       .eq('original_owner_id', userId)
       .single();
 
@@ -470,7 +698,7 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
     const { data: updatedListing, error: updateError } = await supabase
       .from('listings')
       .update(updateFields)
-      .eq('ticket_id', listingId)
+      .eq('listings_id', listingId)
       .select()
       .single();
 
@@ -478,10 +706,14 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
       throw new Error(`Update error: ${updateError.message}`);
     }
 
-    res.json({ 
-      success: true, 
-      listing: updatedListing 
-    });
+    res.json({
+      success: true,
+      listing: updatedListing,
+      verification_status: isDuplicate ? 'rejected' : 'verified',
+      message: isDuplicate
+        ? 'This listing was rejected due to duplication.'
+        : 'Listing verified and published successfully.'
+    });    
 
   } catch (error) {
     console.error('Confirm listing error:', error);
@@ -491,71 +723,3 @@ router.post('/confirm-listing/:listingId', async (req, res) => {
     });
   }
 });
-
-// Delete listing
-router.delete('/listings/:listingId', async (req, res) => {
-  try {
-    const { listingId } = req.params;
-    const { userId } = req.body;
-
-    // Verify user owns the listing
-    const { data: listing, error: fetchError } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('ticket_id', listingId)
-      .eq('original_owner_id', userId)
-      .single();
-
-    if (fetchError || !listing) {
-      return res.status(404).json({ error: 'Listing not found or unauthorized' });
-    }
-
-    // Delete from database
-    const { error: deleteError } = await supabase
-      .from('listings')
-      .delete()
-      .eq('ticket_id', listingId);
-
-    if (deleteError) {
-      throw new Error(`Delete error: ${deleteError.message}`);
-    }
-
-    // Delete from storage (optional - you might want to keep images for audit)
-    if (listing.image_url) {
-      const fileName = listing.image_url.split('/').pop();
-      await supabase.storage
-        .from('tickets')
-        .remove([fileName]);
-    }
-
-    res.json({ success: true });
-
-  } catch (error) {
-    console.error('Delete listing error:', error);
-    res.status(500).json({ 
-      error: 'Failed to delete listing',
-      details: error.message 
-    });
-  }
-});
-
-router.put('/listings/:ticket_id', async (req, res) => {
-	try {
-		const { ticket_id } = req.params;
-		const updateFields = req.body;
-
-		const { data, error } = await supabase
-			.from('listings')
-			.update(updateFields)
-			.eq('ticket_id', ticket_id)
-			.select()
-
-		if (error) throw error;
-
-		res.status(200).json(data);
-	} catch (err) {
-		res.status(400).json({ error: err.message || 'Failed to update listing' });
-	}
-});
-
-module.exports = router

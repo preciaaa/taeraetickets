@@ -107,7 +107,7 @@ async def extract_text(file: UploadFile = File(...)):
             model="mistral-ocr-latest",
             document={
                 "type": "document_url",
-                "document_url": public_url
+                "document_file": (file.filename, BytesIO(file_bytes), "application/pdf")
             },
             include_image_base64=False
         )
