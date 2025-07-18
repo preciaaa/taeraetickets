@@ -119,7 +119,17 @@ router.post('/checkout', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create payment record' });
     }
 
-    // 5. Respond with payment client secret
+    // 5. Mark listing as confirmed (if you want to lock it during payment)
+    const { error: listingUpdateError } = await supabase
+      .from('listings')
+      .update({ status: 'sold' })
+      .eq('listings_id', listings_id);
+
+    if (listingUpdateError) {
+      return res.status(500).json({ error: 'Failed to update listing status' });
+    }
+
+    // 6. Respond with payment client secret
     return res.json({
       clientSecret: paymentIntent.client_secret,
       payment_id: payment.payment_id,

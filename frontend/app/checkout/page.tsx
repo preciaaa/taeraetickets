@@ -150,7 +150,7 @@ export default function CheckoutPage() {
         <div className="text-sm text-gray-600">
           Date: {new Date(listing.summary.date).toLocaleDateString()}
           <br />
-          Price: ${listing.summary.totalPrice}
+          Price: ${listing.price}
         </div>
       </div>
       <Elements stripe={stripePromise} options={{ clientSecret }}>
