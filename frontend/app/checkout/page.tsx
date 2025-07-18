@@ -89,13 +89,11 @@ export default function CheckoutPage() {
     const loadCheckout = async () => {
       try {
         // Fetch listing details to show
-        console.log('listings_id:', listings_id);
         const listingResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/listings/${listings_id}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/listings/$listings_id}`
         );
         if (!listingResponse.ok) throw new Error("Failed to load listing");
         const listingRes = await listingResponse.json();
-        console.log('listingRes:', listingRes);
         setListing(listingRes);
 
         console.log("Initiating checkout with:", { user_id, listings_id });
@@ -134,12 +132,12 @@ export default function CheckoutPage() {
     <div className="max-w-xl mx-auto mt-10 bg-white p-6 rounded shadow">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
       <div className="border p-3 mb-3 rounded">
-        <div className="font-semibold">{listing.summary.event_name || "Event"}</div>
+        <div className="font-semibold">{listing.event_name || "Event"}</div>
         <div className="text-sm text-gray-600">
           {/* Show some relevant details from listing */}
-          Date: {new Date(listing.summary.date).toLocaleDateString()}
+          Date: {new Date(listing.date).toLocaleDateString()}
           <br />
-          Price: ${listing.summary.totalPrice}
+          Price: ${listing.price}
         </div>
       </div>
       <Elements stripe={stripePromise} options={{ clientSecret }}>
