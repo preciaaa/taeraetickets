@@ -237,7 +237,7 @@ export default function MyListings() {
                     <Card className="overflow-hidden rounded-2xl card-glass shadow-lg border border-gray-200 transition-transform hover:scale-[1.025] hover:shadow-xl">
                       <div className="relative group">
                         <div
-                          className="aspect-video bg-gray-100 flex items-center justify-center border-b border-gray-200 group-hover:border-blue-400 transition-all cursor-pointer"
+                          className="h-[180px] bg-gray-100 flex items-center justify-center border-b border-gray-200 group-hover:border-blue-400 transition-all cursor-pointer"
                           onClick={() => window.open(listing.image_url, '_blank')}
                           title={isPdf ? 'View PDF' : 'View image'}
                         >

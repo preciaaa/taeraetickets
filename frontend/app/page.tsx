@@ -48,7 +48,7 @@ const LandingPage = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg hover:shadow-2xl transition-shadow duration-300 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200">
+            <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 delay-75 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200 bg-white/80 backdrop-blur-sm">
               <CardContent className="p-8 text-center space-y-4">
                 <div className="w-16 h-16 bg-yellow-400 rounded-2xl mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <Users className="w-8 h-8 text-black" />
@@ -61,7 +61,7 @@ const LandingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-2xl transition-shadow duration-300 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200">
+            <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 delay-75 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200 bg-white/80 backdrop-blur-sm">
               <CardContent className="p-8 text-center space-y-4">
                 <div className="w-16 h-16 bg-yellow-400 rounded-2xl mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <DollarSign className="w-8 h-8 text-black" />
@@ -74,7 +74,7 @@ const LandingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-2xl transition-shadow duration-300 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200">
+            <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 delay-75 group hover:-translate-y-2 hover:ring-2 hover:ring-yellow-200 bg-white/80 backdrop-blur-sm">
               <CardContent className="p-8 text-center space-y-4">
                 <div className="w-16 h-16 bg-yellow-400 rounded-2xl mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <Lock className="w-8 h-8 text-black" />

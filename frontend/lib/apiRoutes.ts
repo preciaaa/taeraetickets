@@ -44,6 +44,7 @@ export const apiRoutes = {
   autoRelease: `${API_BASE_URL}/auto-release`,
 
   uploadTicket: `${API_BASE_URL}/upload-ticket`,
+  processTicket: `${API_BASE_URL}/process-ticket`,
 
   health: `${API_BASE_URL}/health`,
   fastapiHealth: `${FASTAPI_BACKEND_API_URL}/health`,

@@ -140,7 +140,7 @@ npm run dev
 - `GET /health` - Health check endpoint
 
 ### Backend Service (Node.js/Express)
-- `POST /upload-ticket` - Upload and process tickets
+- `POST /process-ticket` - Upload processed ticket details
 - `GET /listings/:userId` - Get user's listings
 - `POST /confirm-listing/:listingId` - Confirm a listing
 - `DELETE /listings/:listingId` - Delete a listing

@@ -23,10 +23,9 @@ interface Event {
 interface EventSelectorProps {
   selectedEvent: Event | null
   onEventSelect: (event: Event | null) => void
-  onCreateEvent: (title: string) => Promise<void>
 }
 
-export function EventSelector({ selectedEvent, onEventSelect, onCreateEvent }: EventSelectorProps) {
+export function EventSelector({ selectedEvent, onEventSelect }: EventSelectorProps) {
   const [eventSearch, setEventSearch] = useState('')
   const [eventSuggestions, setEventSuggestions] = useState<Event[]>([])
   const [eventLoading, setEventLoading] = useState(false)

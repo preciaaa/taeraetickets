@@ -25,7 +25,8 @@ interface ExtractedFields {
 export default function NewIndividualListing() {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [ticketUploaded, setTicketUploaded] = useState(false)
+  const [listingUploading, setListingUploading] = useState(false)
   const [extractedFields, setExtractedFields] = useState<ExtractedFields>({})
   const [extractedText, setExtractedText] = useState<string>("")
   const [isScanned, setIsScanned] = useState(false)
@@ -141,12 +142,13 @@ export default function NewIndividualListing() {
       toast.error("Please select a file first")
       return
     }
-    setUploading(true)
+    setTicketUploaded(true)
+    setListingUploading(true)
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         toast.error("Please log in to upload tickets")
-        setUploading(false)
+        setListingUploading(false)
         return
       }
       const formData = new FormData()
@@ -155,13 +157,13 @@ export default function NewIndividualListing() {
       if (selectedEvent && selectedEvent.title) {
         formData.append("eventName", selectedEvent.title)
       }
-      const response = await fetch(apiRoutes.uploadTicket, {
+      const response = await fetch(apiRoutes.processTicket, {
         method: "POST",
         body: formData
       })
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Upload failed")
+        throw new Error(errorData.error || "Processing failed")
       }
       const result = await response.json()
       const parsed = result.parsed || {}
@@ -183,7 +185,7 @@ export default function NewIndividualListing() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed")
     } finally {
-      setUploading(false)
+      setListingUploading(false)
     }
   }
 
@@ -192,7 +194,7 @@ export default function NewIndividualListing() {
       toast.error("Please select an event first")
       return
     }
-    if (!processedData) {
+    if (!ticketUploaded) {
       toast.error("Please upload and process a ticket first")
       return
     }
@@ -204,16 +206,16 @@ export default function NewIndividualListing() {
       toast.error(`Please select a valid price between $1 and $${maxPrice}`)
       return
     }
-    setUploading(true)
+    setListingUploading(true)
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         toast.error("Please log in to create listings")
-        setUploading(false)
+        setListingUploading(false)
         return
       }
       const listingData = {
-        event_id: processedData.eventId || selectedEvent.id,
+        event_id: processedData?.eventId || selectedEvent.id,
         original_owner_id: user.id,
         event_name: selectedEvent.title,
         section: extractedFields.section || "",
@@ -221,13 +223,13 @@ export default function NewIndividualListing() {
         seat_number: extractedFields.seat_number || null,
         category: extractedFields.category || "General",
         venue: extractedFields.venue || "",
-        date: extractedFields.date || processedData.eventDate,
+        date: extractedFields.date || processedData?.eventDate,
         price: selectedPrice,
-        image_url: processedData.publicUrl,
+        image_url: processedData?.publicUrl,
         parsed_fields: extractedFields,
-        fingerprint: processedData.fingerprint,
-        embedding: processedData.embedding,
-        phash: processedData.phash
+        fingerprint: processedData?.fingerprint,
+        embedding: processedData?.embedding,
+        phash: processedData?.phash
       }
       const response = await fetch(apiRoutes.listings, {
         method: "POST",
@@ -245,7 +247,7 @@ export default function NewIndividualListing() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create listing")
     } finally {
-      setUploading(false)
+      setListingUploading(false)
     }
   }
 
@@ -265,7 +267,6 @@ export default function NewIndividualListing() {
       <EventSelector
         selectedEvent={selectedEvent}
         onEventSelect={handleSelectEvent}
-        onCreateEvent={() => {}}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <Card className="rounded-2xl shadow-xl border border-gray-100 bg-white/90">
@@ -320,10 +321,10 @@ export default function NewIndividualListing() {
             </div>
             <Button
               onClick={handleUpload}
-              disabled={!file || uploading || !selectedEvent}
+              disabled={!file || listingUploading || !selectedEvent}
               className="w-full py-3 text-base font-medium"
             >
-              {uploading ? (
+              {listingUploading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                   Processing...
@@ -506,11 +507,11 @@ export default function NewIndividualListing() {
         <div className="mt-8 text-center">
           <Button
             onClick={handleSubmit}
-            disabled={!selectedEvent || uploading || selectedPrice <= 0 || selectedPrice > maxPrice}
+            disabled={!selectedEvent || listingUploading || selectedPrice <= 0 || selectedPrice > maxPrice}
             size="lg"
             className="px-8 py-3 text-lg font-semibold"
           >
-            {uploading ? (
+            {listingUploading ? (
               <>
                 <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                 Creating Listing...
@@ -529,4 +530,4 @@ export default function NewIndividualListing() {
       )}
     </div>
   )
-} 
+}  

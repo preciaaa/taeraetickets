@@ -41,6 +41,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [search, setSearch] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [slidesToScroll, setSlidesToScroll] = useState(1)
   const router = useRouter()
 
   useEffect(() => {
@@ -75,7 +76,20 @@ export default function EventsPage() {
       }
     })
   }, [])
-  
+
+   useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width >= 1280) setSlidesToScroll(4) // xl
+      else if (width >= 1024) setSlidesToScroll(3) // lg
+      else if (width >= 768) setSlidesToScroll(2) // md
+      else setSlidesToScroll(1) // sm
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   if (loading) return <div>Loading...</div>
 
@@ -133,7 +147,7 @@ export default function EventsPage() {
       </h2>
 
       <div className="mt-4 relative w-full">
-        <Carousel className="w-auto" opts={{ slidesToScroll: 4, align: 'start' }}>
+        <Carousel className="w-auto" opts={{ align: 'start', slidesToScroll }}>
           <CarouselContent>
             {events
               .filter(event =>

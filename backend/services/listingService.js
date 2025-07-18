@@ -106,7 +106,8 @@ router.get('/listings/getListingByTicket/:ticket_id', async (req, res) => {
     }
 });
 
-router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
+// POST processed ticket details 
+router.post('/process-ticket', upload.single('ticket'), async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) {
@@ -257,7 +258,7 @@ router.post('/upload-ticket', upload.single('ticket'), async (req, res) => {
             'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
             'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
           };
-          if (monthMap[month.toLowerCase()]) {
+          if (monthMap[month.toLowerCase()] !== undefined) {
             eventDate = new Date(parseInt(year), monthMap[month.toLowerCase()], parseInt(day));
           }
         } else {
@@ -546,7 +547,7 @@ router.put('/listings/:ticket_id', async (req, res) => {
 		const { data, error } = await supabase
 			.from('listings')
 			.update(updateFields)
-			.eq('id', ticket_id)
+			.eq('ticket_id', ticket_id)
 			.select()
 
 		if (error) throw error;
