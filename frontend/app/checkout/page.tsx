@@ -90,7 +90,7 @@ export default function CheckoutPage() {
       try {
         // Fetch listing details to show
         const listingResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/listings/$ listings_id}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/listings/$listings_id}`
         );
         if (!listingResponse.ok) throw new Error("Failed to load listing");
         const listingRes = await listingResponse.json();
