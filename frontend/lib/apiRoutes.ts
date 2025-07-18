@@ -50,6 +50,7 @@ export const apiRoutes = {
   checkout: `${API_BASE_URL}/checkout`,
   createStripeAccount: `${API_BASE_URL}/create-stripe-account`,
   autoRelease: `${API_BASE_URL}/auto-release`,
+  paymentSuccess: `${API_BASE_URL}/payment-success`,
 
   uploadTicket: `${API_BASE_URL}/upload-ticket`,
   processTicket: `${API_BASE_URL}/process-ticket`,

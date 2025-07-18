@@ -20,15 +20,16 @@ const stripePromise = loadStripe(
 const CheckoutForm = ({
   clientSecret,
   userId,
+  listingsId,
 }: {
   clientSecret: string;
   userId: string | null;
+  listingsId: string;
 }) => {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
 
-  // Use userId passed as prop, don't re-read localStorage here
   const paymentId =
     typeof window !== "undefined" ? localStorage.getItem("payment_id") : null;
 
@@ -54,10 +55,29 @@ const CheckoutForm = ({
       alert(result.error.message);
       setSubmitting(false);
     } else if (result.paymentIntent?.status === "succeeded") {
-      alert(
-        "💳 Payment successful!\nNow go to your profile to confirm the purchase."
-      );
-      router.push("/profile");
+      try {
+        // Update backend with payment success
+        const res = await fetch(apiRoutes.paymentSuccess, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payment_intent_id: result.paymentIntent.id,
+          }),
+        });
+
+        if (!res.ok) throw new Error("Failed to confirm payment on backend");
+
+        alert(
+          "💳 Payment successful!\nPlease confirm in your profile to finalize the purchase."
+        );
+
+        router.push("/profile");
+      } catch (err: any) {
+        console.error("Payment success error:", err);
+        alert(err.message || "Payment succeeded but failed to update backend.");
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -78,36 +98,32 @@ export default function CheckoutPage() {
   const listings_id = searchParams.get("listings_id");
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [listing, setListing] = useState<any | null>(null);
-  const [loadingCheckout, setLoadingCheckout] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch user session on mount
+  const calledCheckout = useRef(false);
+
   useEffect(() => {
     async function fetchUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      console.log("Supabase session:", session);
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
         setUserId(session.user.id);
       } else {
-        setUserId(null);
-        router.push("/events"); // redirect if not logged in
+        router.push("/events");
       }
-      setLoadingUser(false);
     }
     fetchUser();
   }, [router]);
 
-  // Load checkout data after userId and loadingUser are ready
   useEffect(() => {
-    if (loadingUser) return; // wait for user loading to finish
+    if (calledCheckout.current) return;
     if (!userId || !listings_id) {
-      setLoadingCheckout(false);
+      setLoading(false);
       return;
     }
+
+    calledCheckout.current = true;
 
     const loadCheckout = async () => {
       try {
@@ -125,7 +141,6 @@ export default function CheckoutPage() {
         if (!checkoutResponse.ok) throw new Error("Failed to initiate payment");
 
         const checkoutRes = await checkoutResponse.json();
-
         setClientSecret(checkoutRes.clientSecret);
         localStorage.setItem("payment_id", checkoutRes.payment_id);
       } catch (err: any) {
@@ -133,14 +148,14 @@ export default function CheckoutPage() {
         alert(err.message || "Failed to load listing or initiate payment");
         router.push("/events");
       } finally {
-        setLoadingCheckout(false);
+        setLoading(false);
       }
     };
 
     loadCheckout();
-  }, [userId, listings_id, loadingUser, router]);
+  }, [userId, listings_id, router]);
 
-  if (loadingUser || loadingCheckout) return <p>Loading...</p>;
+  if (loading) return <p>Loading...</p>;
   if (!clientSecret || !listing) return <p>Failed to load payment</p>;
 
   return (
@@ -155,7 +170,11 @@ export default function CheckoutPage() {
         </div>
       </div>
       <Elements stripe={stripePromise} options={{ clientSecret }}>
-        <CheckoutForm clientSecret={clientSecret} userId={userId} />
+        <CheckoutForm
+          clientSecret={clientSecret}
+          userId={userId}
+          listingsId={listings_id!}
+        />
       </Elements>
     </div>
   );
