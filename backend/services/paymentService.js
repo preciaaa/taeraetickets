@@ -112,6 +112,8 @@ router.post('/checkout', async (req, res) => {
       })
       .select()
       .single();
+    
+      console.log('Payment insert result:', payment, paymentError);
 
     if (paymentError) {
       return res.status(500).json({ error: 'Failed to create payment record' });

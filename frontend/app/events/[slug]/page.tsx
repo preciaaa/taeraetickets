@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { set, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useEffect, useMemo, useState } from 'react'
@@ -49,6 +49,7 @@ interface Event {
 }
 
 interface Listing {
+  listings_id: string
   ticket_id: string
   event_id: number
   event_name: string
@@ -490,8 +491,10 @@ export default function EventPage({ params }: { params: { slug: string } }) {
               <Button
                 onClick={() => {
                   setShowConfirm(false)
+                  if (selectedListing) {
+                    router.push(`/checkout?listings_id=${selectedListing.listings_id}`)
+                  }
                   setSelectedListing(null)
-                  router.push(`/checkout`)
                 }}
               >
                 Confirm
